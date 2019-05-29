@@ -1,13 +1,12 @@
 package loadbalancer
 
 import (
+	"github.com/celeskyking/go-nacos/client/http"
 	"github.com/parnurzeal/gorequest"
-	"go-nacos/client/http"
 	"net/url"
 	"sync"
 	"time"
 )
-
 
 const (
 	DefaultTimeout  = 3 * time.Second
@@ -27,28 +26,22 @@ type LB interface {
 	SelectOne() *Server
 }
 
-
 type DirectProxy struct {
-
 	Server *Server
-
 }
 
-
-func (d *DirectProxy) SelectOne() *Server{
+func (d *DirectProxy) SelectOne() *Server {
 	return d.Server
 }
 
-
 func NewDirectProxy(server []*Server) LB {
-	if len(server) == 0{
+	if len(server) == 0 {
 		return &DirectProxy{}
 	}
 	return &DirectProxy{
 		Server: server[0],
 	}
 }
-
 
 type HealthCheck interface {
 	//
@@ -65,7 +58,7 @@ func (h *healthCheck) Check(stop <-chan struct{}, server *Server, callback func(
 		select {
 		case <-stop:
 		case <-ticker.C:
-			http.New().Clone().Get(server.URL.String()+server.HealthPath).End(func(response gorequest.Response, body string, errs []error) {
+			http.New().Clone().Get(server.URL.String() + server.HealthPath).End(func(response gorequest.Response, body string, errs []error) {
 				if len(errs) != 0 || response == nil || response.StatusCode != 200 {
 					if currentState != Critical {
 						callback(Critical)
@@ -217,9 +210,9 @@ type Server struct {
 
 func NewServer(url *url.URL, weight int, healthPath string) *Server {
 	return &Server{
-		URL:    url,
-		Weight: weight,
-		State:  Passing,
+		URL:        url,
+		Weight:     weight,
+		State:      Passing,
 		HealthPath: healthPath,
 	}
 }

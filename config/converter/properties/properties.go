@@ -6,12 +6,12 @@ import (
 	"context"
 	"crypto/md5"
 	"encoding/hex"
+	"github.com/celeskyking/go-nacos/config"
+	"github.com/celeskyking/go-nacos/config/listener"
+	"github.com/celeskyking/go-nacos/config/types"
+	"github.com/celeskyking/go-nacos/err"
+	"github.com/celeskyking/go-nacos/pkg/pool"
 	"github.com/sirupsen/logrus"
-	"go-nacos/config"
-	"go-nacos/config/listener"
-	"go-nacos/config/types"
-	"go-nacos/err"
-	"go-nacos/pkg/pool"
 	"os"
 	"strconv"
 	"strings"
@@ -19,7 +19,7 @@ import (
 
 func init() {
 	config.RegisterConverter("properties", func(desc *types.FileDesc, content []byte) types.FileMirror {
-		f, er := NewMapFile(desc,content)
+		f, er := NewMapFile(desc, content)
 		if er != nil {
 			logrus.Errorf("load map file converter failed:%+v", er)
 			os.Exit(1)
@@ -28,9 +28,7 @@ func init() {
 	})
 }
 
-
 type Change struct {
-
 	Key string
 
 	EventType listener.EventType
@@ -40,21 +38,19 @@ type Change struct {
 	NewValue string
 }
 
-
 func NewMapFile(desc *types.FileDesc, content []byte) (*MapFile, error) {
-	f := &MapFile{Init:true}
+	f := &MapFile{Init: true}
 	er := refresh(f, desc, content)
 	if er != nil {
 		return nil, er
 	}
 	f.Init = false
 	f.valueListeners = make(map[string]listener.ValueListener)
-	f.fileListeners = make([]listener.FileListener,0)
+	f.fileListeners = make([]listener.FileListener, 0)
 	return f, nil
 }
 
-
-func refresh(file *MapFile, desc *types.FileDesc, content []byte) error{
+func refresh(file *MapFile, desc *types.FileDesc, content []byte) error {
 	m := md5.New()
 	m.Write(content)
 	md5Value := hex.EncodeToString(m.Sum(nil))
@@ -69,72 +65,68 @@ func refresh(file *MapFile, desc *types.FileDesc, content []byte) error{
 	file.content = content
 	if !file.Init {
 		diffFile(file, oldContent, content)
-		diffParam(file,oldParams,params)
+		diffParam(file, oldParams, params)
 	}
 	return nil
 }
 
-
-
-func diffParam(file *MapFile, oldValue, newValue map[string]string){
+func diffParam(file *MapFile, oldValue, newValue map[string]string) {
 	if len(file.valueListeners) == 0 {
 		return
 	}
 	changes := make([]*Change, 4)
-	changes = append(changes, diffDeleted(oldValue,newValue)...)
+	changes = append(changes, diffDeleted(oldValue, newValue)...)
 	changes = append(changes, diffAdded(oldValue, newValue)...)
 	for _, c := range changes {
-		if v,ok := file.valueListeners[c.Key];ok {
+		if v, ok := file.valueListeners[c.Key]; ok {
 			pool.Go(func(context context.Context) {
-				v.OnChange(c.Key, c.OldValue,c.NewValue,file.Desc())
+				v.OnChange(c.Key, c.OldValue, c.NewValue, file.Desc())
 			})
 		}
 	}
 }
 
-
-func diffFile(file *MapFile, oldContent,newContent []byte) {
+func diffFile(file *MapFile, oldContent, newContent []byte) {
 	if len(file.fileListeners) == 0 {
 		return
 	}
 	for _, l := range file.fileListeners {
 		pool.Go(func(i context.Context) {
-			l.OnChange(oldContent,newContent,file.Desc())
+			l.OnChange(oldContent, newContent, file.Desc())
 		})
 	}
 }
 
-
-func diffDeleted(oldValue, newValue map[string]string) []*Change{
+func diffDeleted(oldValue, newValue map[string]string) []*Change {
 	changes := make([]*Change, 0)
 	if len(oldValue) == 0 {
 		return changes
-	}else if len(newValue) == 0 {
-		for key, value := range oldValue{
+	} else if len(newValue) == 0 {
+		for key, value := range oldValue {
 			changes = append(changes, &Change{
-				EventType:listener.Delete,
-				Key:key,
-				NewValue: value,
-				OldValue: "",
+				EventType: listener.Delete,
+				Key:       key,
+				NewValue:  value,
+				OldValue:  "",
 			})
 		}
-	}else{
+	} else {
 		for key, value := range oldValue {
 			if v, ok := newValue[key]; ok {
 				if v != value {
 					changes = append(changes, &Change{
-						EventType:listener.Update,
-						Key:key,
-						NewValue: v,
-						OldValue:value,
+						EventType: listener.Update,
+						Key:       key,
+						NewValue:  v,
+						OldValue:  value,
 					})
 				}
-			}else{
+			} else {
 				changes = append(changes, &Change{
-					EventType:listener.Delete,
-					Key:key,
-					NewValue: v,
-					OldValue:"",
+					EventType: listener.Delete,
+					Key:       key,
+					NewValue:  v,
+					OldValue:  "",
 				})
 			}
 		}
@@ -142,30 +134,28 @@ func diffDeleted(oldValue, newValue map[string]string) []*Change{
 	return changes
 }
 
-
-
-func diffAdded(oldValue, newValue map[string]string) []*Change{
+func diffAdded(oldValue, newValue map[string]string) []*Change {
 	changes := make([]*Change, 0)
 	if len(oldValue) == 0 {
-		for key, value := range newValue{
+		for key, value := range newValue {
 			changes = append(changes, &Change{
-				EventType:listener.Add,
-				Key:key,
-				NewValue: value,
-				OldValue: "",
+				EventType: listener.Add,
+				Key:       key,
+				NewValue:  value,
+				OldValue:  "",
 			})
 		}
 		return changes
-	}else if len(newValue) == 0 {
+	} else if len(newValue) == 0 {
 		return changes
-	}else{
+	} else {
 		for key, value := range newValue {
 			if _, ok := oldValue[key]; !ok {
 				changes = append(changes, &Change{
-					EventType:listener.Add,
-					Key:key,
-					NewValue: value,
-					OldValue: "",
+					EventType: listener.Add,
+					Key:       key,
+					NewValue:  value,
+					OldValue:  "",
 				})
 			}
 		}
@@ -173,22 +163,16 @@ func diffAdded(oldValue, newValue map[string]string) []*Change{
 	return changes
 }
 
-
-
-
-
-
-
-func toMap(content []byte) (map[string]string,error){
-	m := make(map[string]string,8)
+func toMap(content []byte) (map[string]string, error) {
+	m := make(map[string]string, 8)
 	if len(content) == 0 {
 		return m, nil
 	}
 	reader := bufio.NewScanner(bytes.NewReader(content))
 	for reader.Scan() {
 		line := reader.Text()
-		key,value, er := parseLine(line)
-		if er !=nil {
+		key, value, er := parseLine(line)
+		if er != nil {
 			return nil, er
 		}
 		m[key] = value
@@ -196,19 +180,17 @@ func toMap(content []byte) (map[string]string,error){
 	return m, nil
 }
 
-
-func parseLine(line string) (string,string, error) {
-	parts := strings.Split(line,"=")
+func parseLine(line string) (string, string, error) {
+	parts := strings.Split(line, "=")
 	if len(parts) == 2 {
 		return parts[0], parts[1], nil
-	}else{
+	} else {
 		return "", "", err.ErrNotPropertiesFile
 	}
 }
 
 //对应properties文件
-type MapFile struct{
-
+type MapFile struct {
 	params map[string]string
 
 	//根据namespace:env:appName 计算出来的hash值,md5，忽略碰撞的情况
@@ -228,57 +210,47 @@ type MapFile struct{
 
 	//是否是初始化
 	Init bool
-
 }
 
-
-func(m *MapFile) OnChanged(notifyC <- chan []byte) {
+func (m *MapFile) OnChanged(notifyC <-chan []byte) {
 	for data := range notifyC {
-		er :=  refresh(m,m.desc,data)
+		er := refresh(m, m.desc, data)
 		if er != nil {
-			logrus.Errorf("接受nacos 配置文件更新失败,error:%+v",er)
+			logrus.Errorf("接受nacos 配置文件更新失败,error:%+v", er)
 		}
 	}
 }
 
-
-func(m *MapFile) GetContent() []byte {
+func (m *MapFile) GetContent() []byte {
 	return m.content
 }
 
-
-func(m *MapFile) Desc() *types.FileDesc {
+func (m *MapFile) Desc() *types.FileDesc {
 	return m.desc
 }
 
-func(m *MapFile) MD5() string {
+func (m *MapFile) MD5() string {
 	return m.md5
 }
 
-
-func(m *MapFile) Listen(f listener.FileListenerFunc) {
-	m.fileListeners = append(m.fileListeners,f)
+func (m *MapFile) Listen(f listener.FileListenerFunc) {
+	m.fileListeners = append(m.fileListeners, f)
 }
 
-
-func(m *MapFile) ListenValue(key string, f listener.ValueListenerFunc) {
+func (m *MapFile) ListenValue(key string, f listener.ValueListenerFunc) {
 	m.valueListeners[key] = f
 }
 
-
-func(m *MapFile) Get(key string) (string,bool) {
+func (m *MapFile) Get(key string) (string, bool) {
 	v, ok := m.params[key]
 	return v, ok
 }
 
-
-
-func(m *MapFile) MustGet(key string) string {
+func (m *MapFile) MustGet(key string) string {
 	return m.params[key]
 }
 
-
-func(m *MapFile) GetBool(key string) (bool, error){
+func (m *MapFile) GetBool(key string) (bool, error) {
 	v, ok := m.Get(key)
 	if ok {
 		return strconv.ParseBool(v)
@@ -286,21 +258,19 @@ func(m *MapFile) GetBool(key string) (bool, error){
 	return false, err.ErrkeyNotFound
 }
 
-
-func(m *MapFile) GetFloat32(key string) (float32,error) {
+func (m *MapFile) GetFloat32(key string) (float32, error) {
 	v, ok := m.Get(key)
 	if ok {
-		f, er :=  strconv.ParseFloat(v, 32)
+		f, er := strconv.ParseFloat(v, 32)
 		return float32(f), er
 	}
 	return 0, err.ErrkeyNotFound
 }
 
-
-func(m *MapFile) MustGetFloat32(key string) float32 {
+func (m *MapFile) MustGetFloat32(key string) float32 {
 	v, ok := m.Get(key)
 	if ok {
-		f, er :=  strconv.ParseFloat(v, 32)
+		f, er := strconv.ParseFloat(v, 32)
 		if er != nil {
 			panic(er)
 		}
@@ -309,11 +279,10 @@ func(m *MapFile) MustGetFloat32(key string) float32 {
 	return 0
 }
 
-
-func(m *MapFile) MustGetFloat64(key string) float64 {
+func (m *MapFile) MustGetFloat64(key string) float64 {
 	v, ok := m.Get(key)
 	if ok {
-		f, er :=  strconv.ParseFloat(v, 32)
+		f, er := strconv.ParseFloat(v, 32)
 		if er != nil {
 			panic(er)
 		}
@@ -322,18 +291,16 @@ func(m *MapFile) MustGetFloat64(key string) float64 {
 	return 0
 }
 
-
-func(m *MapFile) GetFloat64(key string) (float64,error) {
+func (m *MapFile) GetFloat64(key string) (float64, error) {
 	v, ok := m.Get(key)
 	if ok {
-		f, er :=  strconv.ParseFloat(v, 64)
+		f, er := strconv.ParseFloat(v, 64)
 		return f, er
 	}
 	return 0, err.ErrkeyNotFound
 }
 
-
-func(m *MapFile) MustGetBool(key string) bool {
+func (m *MapFile) MustGetBool(key string) bool {
 	v, ok := m.Get(key)
 	if ok {
 		r, er := strconv.ParseBool(v)
@@ -346,7 +313,7 @@ func(m *MapFile) MustGetBool(key string) bool {
 }
 
 //GetInt 返回int类型的值,如果值不存在则抛出异常
-func(m *MapFile) GetInt(key string) (int, error) {
+func (m *MapFile) GetInt(key string) (int, error) {
 	v, ok := m.Get(key)
 	if ok {
 		i, er := strconv.ParseInt(v, 10, 32)
@@ -355,7 +322,7 @@ func(m *MapFile) GetInt(key string) (int, error) {
 	return 0, err.ErrkeyNotFound
 }
 
-func(m *MapFile) MustGetInt(key string) int {
+func (m *MapFile) MustGetInt(key string) int {
 	v, ok := m.Get(key)
 	if ok {
 		i, er := strconv.ParseInt(v, 10, 32)
@@ -367,7 +334,7 @@ func(m *MapFile) MustGetInt(key string) int {
 	return 0
 }
 
-func(m *MapFile) GetInt32(key string) (int32,error) {
+func (m *MapFile) GetInt32(key string) (int32, error) {
 	v, ok := m.Get(key)
 	if ok {
 		i, er := strconv.ParseInt(v, 10, 32)
@@ -376,9 +343,7 @@ func(m *MapFile) GetInt32(key string) (int32,error) {
 	return 0, err.ErrkeyNotFound
 }
 
-
-
-func(m *MapFile) MustGetInt32(key string) int32 {
+func (m *MapFile) MustGetInt32(key string) int32 {
 	v, ok := m.Get(key)
 	if ok {
 		i, er := strconv.ParseInt(v, 10, 32)
@@ -390,8 +355,7 @@ func(m *MapFile) MustGetInt32(key string) int32 {
 	return 0
 }
 
-
-func(m *MapFile) GetInt64(key string)( int64,error) {
+func (m *MapFile) GetInt64(key string) (int64, error) {
 	v, ok := m.Get(key)
 	if ok {
 		i, er := strconv.ParseInt(v, 10, 64)
@@ -400,7 +364,7 @@ func(m *MapFile) GetInt64(key string)( int64,error) {
 	return 0, err.ErrkeyNotFound
 }
 
-func(m *MapFile) MustGetInt64(key string) int64 {
+func (m *MapFile) MustGetInt64(key string) int64 {
 	v, ok := m.Get(key)
 	if ok {
 		i, er := strconv.ParseInt(v, 10, 64)
@@ -412,7 +376,7 @@ func(m *MapFile) MustGetInt64(key string) int64 {
 	return 0
 }
 
-func(m *MapFile) GetUint32(key string) (uint32,error) {
+func (m *MapFile) GetUint32(key string) (uint32, error) {
 	v, ok := m.Get(key)
 	if ok {
 		i, er := strconv.ParseInt(v, 10, 32)
@@ -421,7 +385,7 @@ func(m *MapFile) GetUint32(key string) (uint32,error) {
 	return 0, err.ErrkeyNotFound
 }
 
-func(m *MapFile) MustGetUint32(key string) uint32 {
+func (m *MapFile) MustGetUint32(key string) uint32 {
 	v, ok := m.Get(key)
 	if ok {
 		i, er := strconv.ParseInt(v, 10, 32)
@@ -433,8 +397,7 @@ func(m *MapFile) MustGetUint32(key string) uint32 {
 	return 0
 }
 
-
-func(m *MapFile) GetUint64(key string) (uint64,error) {
+func (m *MapFile) GetUint64(key string) (uint64, error) {
 	v, ok := m.Get(key)
 	if ok {
 		i, er := strconv.ParseInt(v, 10, 64)
@@ -443,7 +406,7 @@ func(m *MapFile) GetUint64(key string) (uint64,error) {
 	return 0, err.ErrkeyNotFound
 }
 
-func(m *MapFile) MustGetUint64(key string) uint64 {
+func (m *MapFile) MustGetUint64(key string) uint64 {
 	v, ok := m.Get(key)
 	if ok {
 		i, er := strconv.ParseInt(v, 10, 64)

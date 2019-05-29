@@ -1,7 +1,7 @@
 package app
 
 import (
-	"go-nacos/config/service"
+	"github.com/celeskyking/go-nacos/config/service"
 )
 
 type Config struct {
@@ -11,30 +11,21 @@ type Config struct {
 	Env string
 	//当前的namespace
 	Namespace string
-
-
 }
-
 
 //健康监测
-type HealthCheck interface{
-
+type HealthCheck interface {
 }
-
 
 type Application struct {
 	//配置信息
 	Config *Config
+}
+
+func (a *Application) Start() {
 
 }
 
-
-func(a *Application) Start() {
-
-}
-
-
-func(a *Application) ConfigClient() *service.ConfigService {
+func (a *Application) ConfigClient() *service.ConfigService {
 	return nil
 }
-
