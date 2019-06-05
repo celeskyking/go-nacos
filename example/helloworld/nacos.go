@@ -1,35 +1,36 @@
-package discovery
+package main
 
 import (
 	"fmt"
+	"github.com/celeskyking/go-nacos"
 	"github.com/celeskyking/go-nacos/api"
-	"testing"
 )
 
-func TestNewDiscoveryClient(t *testing.T) {
+func main() {
 	config := &api.ConfigOption{
 		AppName:    "demo",
 		Env:        "dev",
 		Namespace:  "7df0358d-8c73-4af3-8798-a54dd49aad7f",
 		Addresses:  []string{"127.0.0.1:8848"},
 		LBStrategy: api.RoundRobin,
-		Port:       8848,
+		Port:       8080,
 	}
-	c := NewDiscoveryClientFromConfig(config)
-	er := c.Register()
+	f := nacos.NewNacosFactory(config)
+	dc := f.NewDiscoveryClient()
+	dc.SetEphemeral(true)
+	er := dc.Register()
 	if er != nil {
 		panic(er)
 	}
-	//time.Sleep(time.Hour)
-	n, services, er := c.Naming().GetAllServices("7df0358d-8c73-4af3-8798-a54dd49aad7f")
+	n, sl, er := dc.Naming().GetAllServices("7df0358d-8c73-4af3-8798-a54dd49aad7f")
 	if er != nil {
 		panic(er)
 	}
 	fmt.Printf("service num:%d", n)
-	for _, s := range services {
-		fmt.Printf("service :%+v", s)
+	for _, s := range sl {
+		fmt.Println(s)
 	}
-	er = c.Deregister()
+	er = dc.Deregister()
 	if er != nil {
 		panic(er)
 	}

@@ -259,15 +259,11 @@ type ServiceDetail struct {
 }
 
 type ClusterDetail struct {
-	HealthChecker HealthChecker `json:"healthChecker"`
+	HealthChecker map[string]interface{} `json:"healthChecker"`
 
 	Metadata map[string]string `json:"metadata,omitempty"`
 
 	Name string `json:"name"`
-}
-
-type HealthChecker struct {
-	Type string `json:"type"`
 }
 
 type ServiceListOption struct {
@@ -437,7 +433,7 @@ type UpdateServiceInstanceHealthyRequest struct {
 	NamespaceID string `query:"namespaceId"`
 
 	//健康状态
-	Healthy bool `query:"healthy" validate:"required"`
+	Healthy bool `query:"healthy"`
 	//集群名
 	ClusterName string `query:"clusterName"`
 	//服务名
@@ -460,7 +456,111 @@ type Metrics struct {
 	Cpu float64 `json:"cpu"`
 
 	Status string `json:"status"`
-
 	//
 	ResponsibleInstanceCount int `json:"responsibleInstanceCount"`
+}
+
+type Cluster struct {
+	NamespaceID string `query:"namespaceId" json:"namespaceId"`
+
+	ClusterName string `query:"clusterName" json:"clusterName"`
+
+	ServiceName string `query:"serviceName" json:"serviceName"`
+
+	GroupName string `query:"groupName" json:"groupName"`
+
+	Metadata map[string]string `query:"metadata" json:"metadata,omitempty" transfer:"json"`
+
+	CheckPort int `query:"checkPort" json:"checkPort"`
+
+	HealthChecker IHealthChecker `query:"healthChecker" json:"healthChecker" transfer:"json"`
+
+	UseInstancePort4Check bool `query:"useInstancePort4Check" json:"-"`
+}
+
+type HealthChecker struct {
+	Type string `json:"type"`
+}
+
+type IHealthChecker interface {
+	GetType() string
+}
+
+type MySQLHealthChecker struct {
+	Type string `json:"type"`
+
+	User string `json:"user"`
+
+	Pwd string `json:"pwd"`
+
+	Cmd string `json:"cmd"`
+}
+
+func (m *MySQLHealthChecker) GetType() string {
+	return m.Type
+}
+
+type TCPHealthChecker struct {
+	Type string `json:"type"`
+}
+
+func (t *TCPHealthChecker) GetType() string {
+	return t.Type
+}
+
+type HttpHealthChecker struct {
+	Type string `json:"type"`
+
+	Path string `json:"path"`
+
+	Headers string `json:"headers"`
+
+	ExpectedResponseCode int `json:"expectedResponseCode"`
+}
+
+func (h *HttpHealthChecker) GetType() string {
+	return h.Type
+}
+
+func (h *HttpHealthChecker) SetExpectedResponseCode(code int) {
+	h.ExpectedResponseCode = code
+}
+
+func (h *HttpHealthChecker) SetHeaders(headers string) {
+	h.Headers = headers
+}
+
+type NoneHealthChecker struct {
+	Type string `json:"type"`
+}
+
+func (n *NoneHealthChecker) GetType() string {
+	return n.Type
+}
+
+func NewNoneHealthChecker() *NoneHealthChecker {
+	return &NoneHealthChecker{
+		Type: "NONE",
+	}
+}
+
+func NewHttpHealthChecker(path string) *HttpHealthChecker {
+	return &HttpHealthChecker{
+		Path: path,
+	}
+}
+
+func NewTcpHealthChecker() *TCPHealthChecker {
+	return &TCPHealthChecker{
+		Type: "TCP",
+	}
+}
+
+func NewMySQLHealthChecker(user, pwd, cmd string) *MySQLHealthChecker {
+	return &MySQLHealthChecker{
+		Type: "MYSQL",
+		User: user,
+		Pwd:  pwd,
+		Cmd:  cmd,
+	}
 }

@@ -1,10 +1,9 @@
-package service
+package naming
 
 import (
 	"github.com/celeskyking/go-nacos/api"
 	v1 "github.com/celeskyking/go-nacos/api/ns/v1"
 	"github.com/celeskyking/go-nacos/err"
-	"github.com/celeskyking/go-nacos/naming"
 	"github.com/celeskyking/go-nacos/pkg/util"
 	"github.com/celeskyking/go-nacos/types"
 	"github.com/pkg/errors"
@@ -19,10 +18,11 @@ type NamingService interface {
 	//注册实例
 	RegisterInstance(serviceInstance *types.ServiceInstance) error
 
-	DeRegisterInstance(instance *types.ServiceInstance) error
+	//注销
+	DeRegisterInstance(serviceInstance *types.ServiceInstance) error
 
 	//GetInstances 通过服务名来获取实例信息,默认会选择同namespace和group下的服务
-	GetInstances(serviceName string, options *QueryOptions) (*naming.ServerList, error)
+	GetInstances(serviceName string, options *QueryOptions) (*ServerList, error)
 
 	//GetAllService 返回所有的服务信息,服务的个数和服务的名称列表
 	GetAllServices(namespaceID string) (int, []string, error)
@@ -33,11 +33,19 @@ type NamingService interface {
 	//返回所有的
 	GetAllServicesCount(namespaceID string) (int, error)
 
+	//更新cluster
+	PatchCluster(cluster *types.Cluster) error
+
+	//设置实例是否可用
+	SetInstanceHealthy(serviceName string, options *QueryOptions) error
+
 	//Stop 停止当前的服务
 	Stop()
 
 	//http客户端
 	HttpClient() v1.NamingHttpClient
+
+	GetConfig() *api.ConfigOption
 }
 
 //QueryOptions 查询的选项
@@ -47,7 +55,7 @@ type QueryOptions struct {
 	//环境
 	Group string
 	//集群名
-	Cluster []string
+	Cluster string
 	//是否健康
 	Healthy bool
 	//是否开启watch
@@ -99,6 +107,27 @@ func (n *namingService) RegisterInstance(serviceInstance *types.ServiceInstance)
 	return nil
 }
 
+func (n *namingService) SetInstanceHealthy(serviceName string, option *QueryOptions) error {
+	r, er := n.httpClient.UpdateServiceInstance(&types.ServiceInstance{
+		NamespaceID: option.Namespace,
+		ServiceName: serviceName,
+		GroupName:   option.Group,
+		ClusterName: option.Cluster,
+		Healthy:     option.Healthy,
+	})
+	if er != nil {
+		return er
+	}
+	if !r.Success {
+		return err.ErrNamingService
+	}
+	return nil
+}
+
+func (n *namingService) GetConfig() *api.ConfigOption {
+	return n.Config
+}
+
 func (n *namingService) DeRegisterInstance(serviceInstance *types.ServiceInstance) error {
 	r, er := n.httpClient.DeRegisterServiceInstance(serviceInstance)
 	if er != nil {
@@ -110,14 +139,25 @@ func (n *namingService) DeRegisterInstance(serviceInstance *types.ServiceInstanc
 	return nil
 }
 
+func (n *namingService) PatchCluster(cluster *types.Cluster) error {
+	r, er := n.httpClient.PatchCluster(cluster)
+	if er != nil {
+		return errors.Wrap(er, "patch cluster instance")
+	}
+	if !r.Success {
+		return err.ErrNamingService
+	}
+	return nil
+}
+
 //GetInstances 返回制定services的所有的实例信息
 //todo 支持failover
-func (n *namingService) GetInstances(serviceName string, options *QueryOptions) (*naming.ServerList, error) {
+func (n *namingService) GetInstances(serviceName string, options *QueryOptions) (*ServerList, error) {
 	r, lastRefTime, clusters, er := n.SelectInstances(serviceName, options)
 	if er != nil {
 		return nil, er
 	}
-	sl := naming.NewServerList(r, n.pushReceiver, options.Watch, lastRefTime, serviceName, clusters)
+	sl := NewServerList(r, n.pushReceiver, options.Watch, lastRefTime, serviceName, clusters)
 	sl.Start(n.stopC)
 	return sl, nil
 }
@@ -195,7 +235,7 @@ func buildQueryListRequest(appName string, options *QueryOptions, subscriber boo
 		req.NamespaceID = options.Namespace
 	}
 	if len(options.Cluster) != 0 {
-		req.Clusters = strings.Join(options.Cluster, ",")
+		req.Clusters = options.Cluster
 	}
 	req.HealthyOnly = options.Healthy
 	if subscriber {

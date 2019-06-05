@@ -36,6 +36,7 @@ const (
 	InstanceHealthPath    = "/ns/health/instance"
 	CatalogServicesPath   = "/ns/catalog/services"
 	HealthPath            = "/v1/console/health/liveness"
+	ClusterPath           = "/ns/cluster"
 )
 
 type NamingHttpClient interface {
@@ -70,6 +71,8 @@ type NamingHttpClient interface {
 	GetNacosServers() (*types.NacosServers, error)
 
 	GetLeader() (*types.NacosLeader, error)
+
+	PatchCluster(cluster *types.Cluster) (*types.Result, error)
 
 	UpdateSwitches(request *types.UpdateSwitchRequest) (*types.Result, error)
 
@@ -189,7 +192,7 @@ func (n *namingHttpClient) RegisterServiceInstance(instance *types.ServiceInstan
 		return nil, er
 	}
 	fmt.Println("register instance:" + req)
-	resp, body, errs := http.NewNamingHttp().Post(url).Query(req).End()
+	resp, body, errs := http.NewNamingHttp().Timeout(DefaultConnectTimeout).Post(url).Query(req).End()
 	er = handleErrorResponse(resp, errs)
 	if er != nil {
 		return nil, er
@@ -206,7 +209,7 @@ func (n *namingHttpClient) DeRegisterServiceInstance(instance *types.ServiceInst
 	if er != nil {
 		return nil, er
 	}
-	resp, body, errs := http.NewNamingHttp().Delete(url).Query(req).End()
+	resp, body, errs := http.NewNamingHttp().Timeout(DefaultConnectTimeout).Delete(url).Query(req).End()
 	er = handleErrorResponse(resp, errs)
 	if er != nil {
 		return nil, er
@@ -223,7 +226,7 @@ func (n *namingHttpClient) UpdateServiceInstance(instance *types.ServiceInstance
 	if er != nil {
 		return nil, er
 	}
-	resp, body, errs := http.NewNamingHttp().Put(url).Query(req).End()
+	resp, body, errs := http.NewNamingHttp().Timeout(DefaultConnectTimeout).Put(url).Query(req).End()
 	er = handleErrorResponse(resp, errs)
 	if er != nil {
 		return nil, er
@@ -267,7 +270,7 @@ func (n *namingHttpClient) HeartBeat(beat *types.HeartBeat) (*types.HeartBeatRes
 	if er != nil {
 		return nil, er
 	}
-	resp, body, errs := http.NewNamingHttp().Put(url).Query(req).End()
+	resp, body, errs := http.NewNamingHttp().Timeout(DefaultConnectTimeout).Put(url).Query(req).End()
 	er = handleErrorResponse(resp, errs)
 	if er != nil {
 		return nil, er
@@ -287,7 +290,7 @@ func (n *namingHttpClient) CreateService(service *types.Service) (*types.Result,
 	if er != nil {
 		return nil, er
 	}
-	resp, body, errs := http.NewNamingHttp().Post(url).Query(req).End()
+	resp, body, errs := http.NewNamingHttp().Timeout(DefaultConnectTimeout).Post(url).Query(req).End()
 	er = handleErrorResponse(resp, errs)
 	if er != nil {
 		return nil, er
@@ -304,7 +307,7 @@ func (n *namingHttpClient) DeleteService(service *types.Service) (*types.Result,
 	if er != nil {
 		return nil, er
 	}
-	resp, body, errs := http.NewNamingHttp().Delete(url).Query(req).End()
+	resp, body, errs := http.NewNamingHttp().Timeout(DefaultConnectTimeout).Delete(url).Query(req).End()
 	er = handleErrorResponse(resp, errs)
 	if er != nil {
 		return nil, er
@@ -321,7 +324,7 @@ func (n *namingHttpClient) UpdateService(service *types.Service) (*types.Result,
 	if er != nil {
 		return nil, er
 	}
-	resp, body, errs := http.NewNamingHttp().Put(url).Query(req).End()
+	resp, body, errs := http.NewNamingHttp().Timeout(DefaultConnectTimeout).Put(url).Query(req).End()
 	er = handleErrorResponse(resp, errs)
 	if er != nil {
 		return nil, er
@@ -361,6 +364,21 @@ func (n *namingHttpClient) ListService(option *types.ServiceListOption) (*types.
 	var list types.ServiceListResult
 	er = json.Unmarshal(body, &list)
 	return &list, er
+}
+
+func (n *namingHttpClient) PatchCluster(cluster *types.Cluster) (*types.Result, error) {
+	url := api.SelectOne(n.LB) + path.Join(Prefix, n.Option.Version, ClusterPath)
+	req, er := query.Marshal(cluster)
+	if er != nil {
+		return nil, er
+	}
+	resp, body, errs := http.NewNamingHttp().Timeout(DefaultConnectTimeout).Put(url).Query(req).EndBytes()
+	er = handleErrorResponse(resp, errs)
+	if er != nil {
+		return nil, er
+	}
+	b := string(body) == "ok"
+	return &types.Result{Success: b}, er
 }
 
 func (n *namingHttpClient) GetSwitches() (*types.SwitchesDetail, error) {

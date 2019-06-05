@@ -111,13 +111,14 @@ func TestNamingHttpClient_GetSwitches(t *testing.T) {
 func TestNamingHttpClient_RegisterServiceInstance(t *testing.T) {
 	result, err := Naming.RegisterServiceInstance(&types.ServiceInstance{
 		GroupName:   "beta",
-		ServiceName: "local",
+		ServiceName: "local-2",
 		IP:          util.LocalIP(),
 		Port:        8080,
 		Metadata: util.MapToString(map[string]string{
 			"name": "tianqing.wang",
 			"age":  "30",
 		}),
+		Weight:    1.0,
 		Healthy:   true,
 		Enable:    true,
 		Ephemeral: false,
@@ -127,4 +128,38 @@ func TestNamingHttpClient_RegisterServiceInstance(t *testing.T) {
 		t.Fail()
 	}
 	fmt.Printf("create service: %s", util.ToJSONString(result))
+}
+
+func TestNamingHttpClient_PatchCluster(t *testing.T) {
+	cluster := &types.Cluster{
+		NamespaceID:           "",
+		ServiceName:           "local-2",
+		ClusterName:           "DEFAULT",
+		GroupName:             "beta",
+		UseInstancePort4Check: true,
+		CheckPort:             8080,
+		HealthChecker:         types.NewNoneHealthChecker(),
+	}
+	r, er := Naming.PatchCluster(cluster)
+	if er != nil {
+		t.Error("patch cluster failed", er)
+		t.Fail()
+	}
+	fmt.Printf("patch cluster:%v", r.Success)
+}
+
+func TestNamingHttpClient_UpdateServiceInstanceHealthy(t *testing.T) {
+	r, er := Naming.UpdateServiceInstanceHealthy(&types.UpdateServiceInstanceHealthyRequest{
+		NamespaceID: "",
+		ServiceName: "local-2",
+		ClusterName: "DEFAULT",
+		GroupName:   "beta",
+		IP:          util.LocalIP(),
+		Port:        8080,
+		Healthy:     true,
+	})
+	if er != nil {
+		panic(er)
+	}
+	fmt.Printf("update healthy:%v", r.Success)
 }

@@ -48,6 +48,8 @@ type ConfigOption struct {
 	Addresses []string
 	//负载均衡策略
 	LBStrategy LBStrategy
+	//当前的实例集群
+	Cluster string
 	//快照目录
 	SnapshotDir string
 	//当前服务的端口号

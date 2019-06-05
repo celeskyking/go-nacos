@@ -1,10 +1,9 @@
-package service
+package config
 
 import (
 	"context"
 	"github.com/celeskyking/go-nacos/api"
 	v1 "github.com/celeskyking/go-nacos/api/cs/v1"
-	"github.com/celeskyking/go-nacos/config"
 	"github.com/celeskyking/go-nacos/config/converter/loader"
 	"github.com/celeskyking/go-nacos/config/converter/properties"
 	"github.com/celeskyking/go-nacos/err"
@@ -24,7 +23,7 @@ type ConfigService interface {
 	Properties(file string) (*properties.MapFile, error)
 
 	//文件
-	Custom(file string, c config.FileConverter) (config.FileMirror, error)
+	Custom(file string, c FileConverter) (FileMirror, error)
 
 	Watch()
 
@@ -82,7 +81,7 @@ type configService struct {
 }
 
 func (c *configService) Properties(file string) (*properties.MapFile, error) {
-	f, er := c.Custom(file, config.GetConverter("properties"))
+	f, er := c.Custom(file, GetConverter("properties"))
 	if er != nil {
 		return nil, er
 	}
@@ -90,7 +89,7 @@ func (c *configService) Properties(file string) (*properties.MapFile, error) {
 }
 
 func (c *configService) getFile(file string) ([]byte, error) {
-	desc := &config.FileDesc{
+	desc := &FileDesc{
 		Name:      file,
 		Namespace: c.Namespace,
 		AppName:   c.AppName,
@@ -120,12 +119,12 @@ func (c *configService) getFile(file string) ([]byte, error) {
 	return nil, err.ErrLoaderNotWork
 }
 
-func (c *configService) Custom(file string, converter config.FileConverter) (config.FileMirror, error) {
+func (c *configService) Custom(file string, converter FileConverter) (FileMirror, error) {
 	bs, er := c.getFile(file)
 	if er != nil {
 		return nil, er
 	}
-	f := converter.Convert(&config.FileDesc{
+	f := converter.Convert(&FileDesc{
 		Namespace: c.Namespace,
 		AppName:   c.AppName,
 		Env:       c.Env,
@@ -174,7 +173,7 @@ func (c *configService) Watch() {
 					k.ContentMD5 = ""
 					vb := []byte(v)
 					parts := strings.Split(k.Group, ":")
-					desc := &config.FileDesc{
+					desc := &FileDesc{
 						Namespace: c.Namespace,
 						Name:      k.DataID,
 						AppName:   parts[0],
@@ -196,7 +195,7 @@ func (c *configService) Watch() {
 	}()
 }
 
-func (c *configService) flushSnapshot(desc *config.FileDesc, content []byte) {
+func (c *configService) flushSnapshot(desc *FileDesc, content []byte) {
 	er := c.snapshotWriter.Write(desc, content)
 	if er != nil {
 		logrus.Errorf("snapshot flush content error:%+v", er)

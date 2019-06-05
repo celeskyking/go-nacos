@@ -1,9 +1,8 @@
-package service
+package config
 
 import (
 	"fmt"
 	"github.com/celeskyking/go-nacos/api"
-	"github.com/celeskyking/go-nacos/config"
 	"github.com/celeskyking/go-nacos/pkg/pool"
 	"github.com/celeskyking/go-nacos/pkg/util"
 	"testing"
@@ -50,7 +49,7 @@ func TestConfigService_Watch(t *testing.T) {
 	if er != nil {
 		panic(er)
 	}
-	mapFile.ListenValue("text", func(key string, curValue, newValue string, ctx *config.FileDesc) {
+	mapFile.ListenValue("text", func(key string, curValue, newValue string, ctx *FileDesc) {
 		fmt.Println("new value:" + newValue)
 	})
 	c.Watch()
