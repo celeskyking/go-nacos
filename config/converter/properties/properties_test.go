@@ -3,13 +3,12 @@ package properties
 import (
 	"fmt"
 	"github.com/celeskyking/go-nacos/config"
-	"github.com/celeskyking/go-nacos/config/types"
 	"testing"
 )
 
 func TestMapFile_Desc(t *testing.T) {
 	c := config.GetConverter("properties")
-	mapfile := c.Convert(&types.FileDesc{
+	mapfile := c.Convert(&config.FileDesc{
 		Name:      "demo.properties",
 		AppName:   "app1",
 		Env:       "beta",

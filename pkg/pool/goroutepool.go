@@ -1,6 +1,5 @@
 package pool
 
-
 import (
 	"context"
 	"sync"
@@ -40,9 +39,8 @@ func Configure() *Config {
 type Pool struct {
 	Cfg *Config
 
-
-	ctx    context.Context
-	cancel context.CancelFunc
+	ctx     context.Context
+	cancel  context.CancelFunc
 	pending chan func(ctx context.Context)
 	workers chan struct{}
 
@@ -136,7 +134,7 @@ func New(ctx context.Context, cfgs ...*Config) *Pool {
 	return gr
 }
 
-func Go(f func(context.Context)) {
+func Go(f func(ctx context.Context)) {
 	defaultGo.Do(f)
 }
 

@@ -3,7 +3,9 @@ package loadbalancer
 import (
 	"github.com/celeskyking/go-nacos/client/http"
 	"github.com/parnurzeal/gorequest"
+	"github.com/sirupsen/logrus"
 	"net/url"
+	"reflect"
 	"sync"
 	"time"
 )
@@ -24,6 +26,10 @@ const (
 type LB interface {
 	//SelectOne 选择一个端口
 	SelectOne() *Server
+
+	RefreshServers(servers []*Server)
+
+	GetServers() []*Server
 }
 
 type DirectProxy struct {
@@ -32,6 +38,17 @@ type DirectProxy struct {
 
 func (d *DirectProxy) SelectOne() *Server {
 	return d.Server
+}
+
+func (d *DirectProxy) GetServers() []*Server {
+	return []*Server{d.Server}
+}
+
+func (d *DirectProxy) RefreshServers(servers []*Server) {
+	if len(servers) == 0 {
+		return
+	}
+	d.Server = servers[0]
 }
 
 func NewDirectProxy(server []*Server) LB {
@@ -90,6 +107,8 @@ type RoundRobin struct {
 	lock sync.Mutex
 
 	Stop chan struct{}
+	//设置是否开启健康监测
+	HealthCheckEnabled bool
 }
 
 // 最大公约数
@@ -98,6 +117,10 @@ func greaterCommonDivisor(i, j int) int {
 		i, j = j, i%j
 	}
 	return i
+}
+
+func (r *RoundRobin) GetServers() []*Server {
+	return r.Servers
 }
 
 func (r *RoundRobin) SelectOne() *Server {
@@ -163,13 +186,12 @@ func (r *RoundRobin) getGcdForServers() int {
 }
 
 //NewRoundRobin 加权轮询服务器
-//todo 支持动态刷新servers,目前不支持
-func NewRoundRobin(servers []*Server) LB {
+func NewRoundRobin(servers []*Server, healthCheckEnabled bool) LB {
 	r := &RoundRobin{
 		Servers: servers,
 		Stop:    make(chan struct{}, 0),
 	}
-	if len(servers) > 0 {
+	if len(servers) > 0 && healthCheckEnabled {
 		r.Start(r.Stop)
 	}
 	r.refresh()
@@ -196,6 +218,17 @@ func (r *RoundRobin) refresh() {
 	r.CurrentIndex = -1
 }
 
+func (r *RoundRobin) RefreshServers(servers []*Server) {
+	if len(servers) == 0 {
+		logrus.Errorf("no working servers")
+	}
+	if !reflect.DeepEqual(r.Servers, servers) {
+		r.Servers = servers
+		r.refresh()
+	}
+
+}
+
 type Server struct {
 	//地址
 	URL *url.URL
@@ -206,6 +239,10 @@ type Server struct {
 
 	//健康监测的地址
 	HealthPath string
+}
+
+func (s *Server) GetHost() string {
+	return s.URL.Host
 }
 
 func NewServer(url *url.URL, weight int, healthPath string) *Server {

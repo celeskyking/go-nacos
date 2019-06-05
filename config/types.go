@@ -1,9 +1,9 @@
-package types
+package config
 
 type FileMirror interface {
 
 	//写入所有的数据
-	OnChanged(notifyC <- chan []byte)
+	OnChanged(notifyC <-chan []byte)
 
 	//获取所有的文件内容,不关心格式
 	GetContent() []byte
@@ -13,7 +13,6 @@ type FileMirror interface {
 
 	//文件的md5值
 	MD5() string
-
 }
 
 type FileDesc struct {
@@ -25,5 +24,4 @@ type FileDesc struct {
 	Env string
 
 	Namespace string
-
 }

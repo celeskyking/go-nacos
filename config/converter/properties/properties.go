@@ -8,7 +8,6 @@ import (
 	"encoding/hex"
 	"github.com/celeskyking/go-nacos/config"
 	"github.com/celeskyking/go-nacos/config/listener"
-	"github.com/celeskyking/go-nacos/config/types"
 	"github.com/celeskyking/go-nacos/err"
 	"github.com/celeskyking/go-nacos/pkg/pool"
 	"github.com/sirupsen/logrus"
@@ -18,7 +17,7 @@ import (
 )
 
 func init() {
-	config.RegisterConverter("properties", func(desc *types.FileDesc, content []byte) types.FileMirror {
+	config.RegisterConverter("properties", func(desc *config.FileDesc, content []byte) config.FileMirror {
 		f, er := NewMapFile(desc, content)
 		if er != nil {
 			logrus.Errorf("load map file converter failed:%+v", er)
@@ -38,19 +37,20 @@ type Change struct {
 	NewValue string
 }
 
-func NewMapFile(desc *types.FileDesc, content []byte) (*MapFile, error) {
+func NewMapFile(desc *config.FileDesc, content []byte) (*MapFile, error) {
 	f := &MapFile{Init: true}
-	er := refresh(f, desc, content)
+	er := refresh(f, content)
 	if er != nil {
 		return nil, er
 	}
 	f.Init = false
 	f.valueListeners = make(map[string]listener.ValueListener)
 	f.fileListeners = make([]listener.FileListener, 0)
+	f.desc = desc
 	return f, nil
 }
 
-func refresh(file *MapFile, desc *types.FileDesc, content []byte) error {
+func refresh(file *MapFile, content []byte) error {
 	m := md5.New()
 	m.Write(content)
 	md5Value := hex.EncodeToString(m.Sum(nil))
@@ -194,7 +194,7 @@ type MapFile struct {
 	params map[string]string
 
 	//根据namespace:env:appName 计算出来的hash值,md5，忽略碰撞的情况
-	desc *types.FileDesc
+	desc *config.FileDesc
 
 	//文件的原值
 	content []byte
@@ -214,7 +214,7 @@ type MapFile struct {
 
 func (m *MapFile) OnChanged(notifyC <-chan []byte) {
 	for data := range notifyC {
-		er := refresh(m, m.desc, data)
+		er := refresh(m, data)
 		if er != nil {
 			logrus.Errorf("接受nacos 配置文件更新失败,error:%+v", er)
 		}
@@ -225,7 +225,7 @@ func (m *MapFile) GetContent() []byte {
 	return m.content
 }
 
-func (m *MapFile) Desc() *types.FileDesc {
+func (m *MapFile) Desc() *config.FileDesc {
 	return m.desc
 }
 
@@ -255,7 +255,7 @@ func (m *MapFile) GetBool(key string) (bool, error) {
 	if ok {
 		return strconv.ParseBool(v)
 	}
-	return false, err.ErrkeyNotFound
+	return false, err.ErrKeyNotFound
 }
 
 func (m *MapFile) GetFloat32(key string) (float32, error) {
@@ -264,7 +264,7 @@ func (m *MapFile) GetFloat32(key string) (float32, error) {
 		f, er := strconv.ParseFloat(v, 32)
 		return float32(f), er
 	}
-	return 0, err.ErrkeyNotFound
+	return 0, err.ErrKeyNotFound
 }
 
 func (m *MapFile) MustGetFloat32(key string) float32 {
@@ -297,7 +297,7 @@ func (m *MapFile) GetFloat64(key string) (float64, error) {
 		f, er := strconv.ParseFloat(v, 64)
 		return f, er
 	}
-	return 0, err.ErrkeyNotFound
+	return 0, err.ErrKeyNotFound
 }
 
 func (m *MapFile) MustGetBool(key string) bool {
@@ -319,7 +319,7 @@ func (m *MapFile) GetInt(key string) (int, error) {
 		i, er := strconv.ParseInt(v, 10, 32)
 		return int(i), er
 	}
-	return 0, err.ErrkeyNotFound
+	return 0, err.ErrKeyNotFound
 }
 
 func (m *MapFile) MustGetInt(key string) int {
@@ -340,7 +340,7 @@ func (m *MapFile) GetInt32(key string) (int32, error) {
 		i, er := strconv.ParseInt(v, 10, 32)
 		return int32(i), er
 	}
-	return 0, err.ErrkeyNotFound
+	return 0, err.ErrKeyNotFound
 }
 
 func (m *MapFile) MustGetInt32(key string) int32 {
@@ -361,7 +361,7 @@ func (m *MapFile) GetInt64(key string) (int64, error) {
 		i, er := strconv.ParseInt(v, 10, 64)
 		return i, er
 	}
-	return 0, err.ErrkeyNotFound
+	return 0, err.ErrKeyNotFound
 }
 
 func (m *MapFile) MustGetInt64(key string) int64 {
@@ -382,7 +382,7 @@ func (m *MapFile) GetUint32(key string) (uint32, error) {
 		i, er := strconv.ParseInt(v, 10, 32)
 		return uint32(i), er
 	}
-	return 0, err.ErrkeyNotFound
+	return 0, err.ErrKeyNotFound
 }
 
 func (m *MapFile) MustGetUint32(key string) uint32 {
@@ -403,7 +403,7 @@ func (m *MapFile) GetUint64(key string) (uint64, error) {
 		i, er := strconv.ParseInt(v, 10, 64)
 		return uint64(i), er
 	}
-	return 0, err.ErrkeyNotFound
+	return 0, err.ErrKeyNotFound
 }
 
 func (m *MapFile) MustGetUint64(key string) uint64 {

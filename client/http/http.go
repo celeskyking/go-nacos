@@ -2,6 +2,7 @@ package http
 
 import (
 	"github.com/parnurzeal/gorequest"
+	"github.com/satori/go.uuid"
 	"sync"
 )
 
@@ -15,7 +16,19 @@ func init() {
 	})
 }
 
+func NewNamingHttp() *gorequest.SuperAgent {
+	return Client.Clone().Set("User-Agent", "nacos-go-sdk:v1.0.0").
+		Set("Client-Version", "nacos-go-sdk:v1.0.0").
+		Set("Connection", "Keep-Alive").
+		Set("RequestId", uid()).
+		Set("Request-Module", "Naming")
+}
 
-func New() *gorequest.SuperAgent{
+func New() *gorequest.SuperAgent {
 	return Client.Clone()
+}
+
+func uid() string {
+	u := uuid.NewV4()
+	return u.String()
 }

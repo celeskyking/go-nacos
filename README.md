@@ -15,8 +15,8 @@
 		Addresses:  []string{"127.0.0.1:8848"},
 		LBStrategy: cs.RoundRobin,
 	}
-    //创建ConfigService
-	c := service.NewConfigService(op)
+    //创建ConfigService 
+    c := service.NewConfigService(op)
 	//新建properties文件,目前只支持properties格式的文件
 	mapFile, er  := c.Properties("demo.properties")
     if er != nil {

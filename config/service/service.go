@@ -1,15 +1,19 @@
 package service
 
 import (
-	config2 "github.com/celeskyking/go-nacos/api/cs"
+	"context"
+	"github.com/celeskyking/go-nacos/api"
 	v1 "github.com/celeskyking/go-nacos/api/cs/v1"
 	"github.com/celeskyking/go-nacos/config"
+	"github.com/celeskyking/go-nacos/config/converter/loader"
 	"github.com/celeskyking/go-nacos/config/converter/properties"
-	"github.com/celeskyking/go-nacos/config/types"
+	"github.com/celeskyking/go-nacos/err"
+	"github.com/celeskyking/go-nacos/pkg/pool"
 	"github.com/celeskyking/go-nacos/pkg/util"
 	types2 "github.com/celeskyking/go-nacos/types"
 	"github.com/sirupsen/logrus"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -20,25 +24,33 @@ type ConfigService interface {
 	Properties(file string) (*properties.MapFile, error)
 
 	//文件
-	Custom(file string, c config.FileConverter) (types.FileMirror, error)
+	Custom(file string, c config.FileConverter) (config.FileMirror, error)
 
 	Watch()
 
 	StopWatch()
 }
 
-func NewConfigService(option *ConfigOption) ConfigService {
-	httpOption := v1.DefaultOption()
+func NewConfigService(option *api.ConfigOption) ConfigService {
+	httpOption := api.DefaultOption()
 	httpOption.Servers = option.Addresses
 	httpOption.LBStrategy = option.LBStrategy
+	httpClient := v1.NewConfigHttpClient(httpOption)
+	var loaders []loader.Loader
+	localLoader := loader.NewLocalLoader(option.SnapshotDir)
+	loaders = append(loaders, loader.NewRemoteLoader(httpClient))
+	loaders = append(loaders, localLoader)
 	return &configService{
-		Env:          option.Env,
-		Namespace:    option.Namespace,
-		AppName:      option.AppName,
-		httpClient:   v1.NewConfigHttpClient(httpOption),
-		fileNotifier: make(map[string]chan []byte, 0),
-		fileVersion:  make(map[string]string, 0),
-		status:       false,
+		Env:            option.Env,
+		Namespace:      option.Namespace,
+		AppName:        option.AppName,
+		fileNotifier:   make(map[string]chan []byte, 0),
+		fileVersion:    make(map[string]string, 0),
+		status:         false,
+		SnapshotDir:    option.SnapshotDir,
+		loaders:        loaders,
+		httpClient:     httpClient,
+		snapshotWriter: localLoader.(loader.SnapshotWriter),
 	}
 }
 
@@ -49,8 +61,6 @@ type configService struct {
 	Namespace string
 	//对应的group
 	AppName string
-	//http请求的端口
-	httpClient v1.ConfigHttpClient
 	//文件监听器,key为ListenKey
 	fileNotifier map[string]chan []byte
 	//文件的版本
@@ -61,6 +71,14 @@ type configService struct {
 	status bool
 	//开始
 	listening chan struct{}
+	//loader
+	loaders []loader.Loader
+
+	SnapshotDir string
+
+	httpClient v1.ConfigHttpClient
+
+	snapshotWriter loader.SnapshotWriter
 }
 
 func (c *configService) Properties(file string) (*properties.MapFile, error) {
@@ -71,12 +89,43 @@ func (c *configService) Properties(file string) (*properties.MapFile, error) {
 	return f.(*properties.MapFile), nil
 }
 
-func (c *configService) Custom(file string, converter config.FileConverter) (types.FileMirror, error) {
+func (c *configService) getFile(file string) ([]byte, error) {
+	desc := &config.FileDesc{
+		Name:      file,
+		Namespace: c.Namespace,
+		AppName:   c.AppName,
+		Env:       c.Env,
+	}
+	for _, l := range c.loaders {
+		data, er := l.Load(desc)
+		if er == nil {
+			switch l.(type) {
+			case *loader.LocalLoader:
+				logrus.Infof("loader: localLoader")
+			case *loader.RemoteLoader:
+				logrus.Info("loader: remoteLoader")
+				pool.Go(func(ctx context.Context) {
+					er = c.snapshotWriter.Write(desc, data)
+					if er != nil {
+						logrus.Errorf("flush snapshot error:%+v", er)
+					}
+				})
+			}
+			return data, nil
+		} else {
+			logrus.Errorf("load error:%+v", er)
+			continue
+		}
+	}
+	return nil, err.ErrLoaderNotWork
+}
+
+func (c *configService) Custom(file string, converter config.FileConverter) (config.FileMirror, error) {
 	bs, er := c.getFile(file)
 	if er != nil {
 		return nil, er
 	}
-	f := converter.Convert(&types.FileDesc{
+	f := converter.Convert(&config.FileDesc{
 		Namespace: c.Namespace,
 		AppName:   c.AppName,
 		Env:       c.Env,
@@ -94,23 +143,6 @@ func (c *configService) Custom(file string, converter config.FileConverter) (typ
 	return f, nil
 }
 
-func (c *configService) getFile(file string) (b []byte, err error) {
-	var bs []byte
-	c.httpClient.GetConfigs(&types2.ConfigsRequest{
-		DataID: file,
-		Tenant: c.Namespace,
-		Group:  c.group(),
-	}, func(response *types2.ConfigsResponse, er error) {
-		if er != nil {
-			err = er
-			return
-		}
-		bs = []byte(response.Value)
-		b = bs
-	})
-	return
-}
-
 func (c *configService) group() string {
 	return c.AppName + ":" + c.Env
 }
@@ -126,33 +158,49 @@ func (c *configService) Watch() {
 				logrus.Errorf("listen nacos file error:%+v", er)
 				os.Exit(1)
 			}
-			c.httpClient.ListenConfigs(&types2.ListenConfigsRequest{
+			changes, er := c.httpClient.ListenConfigs(&types2.ListenConfigsRequest{
 				ListeningConfigs: list,
-			}, func(result []*types2.ListenChange, err error) {
-				if err != nil {
-					logrus.Errorf("listen to nacos error:%+v", err)
-					reties = reties + 1
-					time.Sleep(time.Duration(util.Min(reties*5, maxDelay)) * time.Second)
-					return
-				}
-				for _, change := range result {
-					k := change.Key
-					v := change.NewValue
-					if v != "" {
-						k.ContentMD5 = ""
-						if notifyC, ok := c.fileNotifier[k.Line()]; ok {
-							vb := []byte(v)
-							tmp := make([]byte, len(vb))
-							copy(tmp, vb)
-							c.fileVersion[k.Line()] = util.MD5(tmp)
-							notifyC <- vb
-						}
+			})
+			if er != nil {
+				logrus.Errorf("listen to nacos error:%+v", er)
+				reties = reties + 1
+				time.Sleep(time.Duration(util.Min(reties*5, maxDelay)) * time.Second)
+				return
+			}
+			for _, change := range changes {
+				k := change.Key
+				v := change.NewValue
+				if v != "" {
+					k.ContentMD5 = ""
+					vb := []byte(v)
+					parts := strings.Split(k.Group, ":")
+					desc := &config.FileDesc{
+						Namespace: c.Namespace,
+						Name:      k.DataID,
+						AppName:   parts[0],
+						Env:       parts[1],
+					}
+					pool.Go(func(context context.Context) {
+						c.flushSnapshot(desc, vb)
+					})
+					if notifyC, ok := c.fileNotifier[k.Line()]; ok {
+						tmp := make([]byte, len(vb))
+						copy(tmp, vb)
+						c.fileVersion[k.Line()] = util.MD5(tmp)
+						notifyC <- vb
 					}
 				}
-				reties = 0
-			})
+			}
+			reties = 0
 		}
 	}()
+}
+
+func (c *configService) flushSnapshot(desc *config.FileDesc, content []byte) {
+	er := c.snapshotWriter.Write(desc, content)
+	if er != nil {
+		logrus.Errorf("snapshot flush content error:%+v", er)
+	}
 }
 
 func (c *configService) StopWatch() {
@@ -182,17 +230,4 @@ func (c *configService) listenKeys() ([]*types2.ListenKey, error) {
 		keys = append(keys, listenKey)
 	}
 	return keys, nil
-}
-
-type ConfigOption struct {
-	//应用名称
-	AppName string
-	//环境名称
-	Env string
-	// 当前的namespace
-	Namespace string
-	//nacos 配置中心的地址
-	Addresses []string
-	//负载均衡策略
-	LBStrategy config2.LBStrategy
 }

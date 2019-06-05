@@ -2,11 +2,10 @@ package v1
 
 import (
 	"errors"
-	"fmt"
-	"github.com/celeskyking/go-nacos/api/cs"
+	"github.com/celeskyking/go-nacos/api"
 	"github.com/celeskyking/go-nacos/client/http"
+	"github.com/celeskyking/go-nacos/client/loadbalancer"
 	"github.com/celeskyking/go-nacos/err"
-	"github.com/celeskyking/go-nacos/loadbalancer"
 	"github.com/celeskyking/go-nacos/pkg/query"
 	"github.com/celeskyking/go-nacos/pkg/util"
 	"github.com/celeskyking/go-nacos/types"
@@ -29,7 +28,7 @@ const (
 	ListenerConfigPath    = "/cs/configs/listener"
 	PublishConfigPath     = "/cs/configs"
 	DeleteConfigPath      = "/cs/configs"
-	HealthPath            = "/v1/cs/health"
+	HealthPath            = "/v1/console/health/liveness"
 )
 
 type StatusCodeConverter interface {
@@ -66,37 +65,30 @@ func NewConverter() StatusCodeConverter {
 	return newConverter()
 }
 
-func DefaultOption() *cs.HttpConfigOption {
-	return &cs.HttpConfigOption{
-		Version:        "v1",
-		ConnectTimeout: DefaultConnectTimeout,
-	}
-}
-
 //httpClient的端口,主要用于实现http请求
 type ConfigHttpClient interface {
-	GetConfigs(request *types.ConfigsRequest, callback func(response *types.ConfigsResponse, err error))
+	GetConfigs(request *types.ConfigsRequest) (response *types.ConfigsResponse, err error)
+	//ListenConfigs 是一个阻塞方法,最好不要在主线程内调用,异步调用比较可靠,或者使用高级API
+	ListenConfigs(request *types.ListenConfigsRequest) (result []*types.ListenChange, err error)
 
-	ListenConfigs(request *types.ListenConfigsRequest, callback func(result []*types.ListenChange, err error))
+	PublishConfig(request *types.PublishConfig) (result *types.Result, err error)
 
-	PublishConfig(request *types.PublishConfig, callback func(result *types.PublishResult, err error))
-
-	DeleteConfigs(request *types.ConfigsRequest, callback func(response *types.DeleteResult, err error))
+	DeleteConfigs(request *types.ConfigsRequest) (response *types.Result, err error)
 }
 
-func NewConfigHttpClient(option *cs.HttpConfigOption) ConfigHttpClient {
+func NewConfigHttpClient(option *api.HttpConfigOption) ConfigHttpClient {
 	return newConfigHttpClient(option)
 }
 
 type configHttpClient struct {
 	LB loadbalancer.LB
 
-	Option *cs.HttpConfigOption
+	Option *api.HttpConfigOption
 
 	Converter StatusCodeConverter
 }
 
-func newConfigHttpClient(option *cs.HttpConfigOption) *configHttpClient {
+func newConfigHttpClient(option *api.HttpConfigOption) *configHttpClient {
 	ss := option.Servers
 	if len(ss) == 0 {
 		logrus.Errorf("不合法的nacos服务器列表,服务器最少存在一个")
@@ -104,7 +96,7 @@ func newConfigHttpClient(option *cs.HttpConfigOption) *configHttpClient {
 	}
 	var servers []*loadbalancer.Server
 	for _, s := range ss {
-		u, er := toURL(s)
+		u, er := api.ToURL(s)
 		if er != nil {
 			logrus.Errorf("不合法的server地址:%s", s)
 			os.Exit(1)
@@ -113,8 +105,8 @@ func newConfigHttpClient(option *cs.HttpConfigOption) *configHttpClient {
 		servers = append(servers, server)
 	}
 	ch := &configHttpClient{}
-	if option.LBStrategy == cs.RoundRobin {
-		ch.LB = loadbalancer.NewRoundRobin(servers)
+	if option.LBStrategy == api.RoundRobin {
+		ch.LB = loadbalancer.NewRoundRobin(servers, true)
 	} else {
 		ch.LB = loadbalancer.NewDirectProxy(servers)
 	}
@@ -123,23 +115,12 @@ func newConfigHttpClient(option *cs.HttpConfigOption) *configHttpClient {
 	return ch
 }
 
-func toURL(addr string) (*url.URL, error) {
-	if !strings.HasPrefix(addr, "http://") {
-		addr = "http://" + addr
-	}
-	u, er := url.Parse(addr)
-	if er != nil {
-		return nil, er
-	}
-	return u, nil
-}
-
-func (c *configHttpClient) GetConfigs(request *types.ConfigsRequest, callback func(response *types.ConfigsResponse, err error)) {
+func (c *configHttpClient) GetConfigs(request *types.ConfigsRequest) (*types.ConfigsResponse, error) {
 	logrus.Infof("get configs,request%+v", request)
-	u := toUrl(c.LB)
+	u := api.SelectOne(c.LB)
 	req, er := query.Marshal(request)
 	if er != nil {
-		callback(nil, er)
+		return nil, er
 	}
 	response, bs, errs := http.New().Timeout(DefaultConnectTimeout).Get(u + path.Join(Prefix, c.Option.Version, GetConfigPath)).Query(req).EndBytes()
 	er = handleErrorResponse(c.Converter, response, errs)
@@ -147,17 +128,16 @@ func (c *configHttpClient) GetConfigs(request *types.ConfigsRequest, callback fu
 		v := &types.ConfigsResponse{
 			Value: string(bs),
 		}
-		callback(v, nil)
-		return
+		return v, nil
 	} else {
-		callback(nil, er)
+		return nil, er
 	}
 }
 
 //ListenConfigs 监听变更并且回调变更,当前的callback方法并不是纯异步的操作,只是同步操作
-func (c *configHttpClient) ListenConfigs(request *types.ListenConfigsRequest, callback func(result []*types.ListenChange, err error)) {
+func (c *configHttpClient) ListenConfigs(request *types.ListenConfigsRequest) ([]*types.ListenChange, error) {
 	logrus.Infof("listen configs, request:%+s", util.ToJSONString(request))
-	u := toUrl(c.LB) + path.Join(Prefix, c.Option.Version, ListenerConfigPath)
+	u := api.SelectOne(c.LB) + path.Join(Prefix, c.Option.Version, ListenerConfigPath)
 	req := request.Line()
 	resp, body, errs := http.New().Timeout(time.Minute).Post(u).
 		Set("Long-Pulling-Timeout", DefaultPollingTimeout).
@@ -166,13 +146,11 @@ func (c *configHttpClient) ListenConfigs(request *types.ListenConfigsRequest, ca
 	er := handleErrorResponse(c.Converter, resp, errs)
 	if er == nil {
 		if len(body) == 0 {
-			callback(nil, nil)
-			return
+			return nil, nil
 		}
 		lines, er := url.QueryUnescape(strings.TrimSpace(body))
 		if er != nil {
-			callback(nil, er)
-			return
+			return nil, er
 		}
 		parts := strings.Split(lines, string(types.ArticleSeparator))
 		var changes []*types.ListenChange
@@ -183,79 +161,61 @@ func (c *configHttpClient) ListenConfigs(request *types.ListenConfigsRequest, ca
 			change := &types.ListenChange{}
 			key, er := types.ParseListenKey(p)
 			if er != nil {
-				callback(nil, er)
-				return
+				return nil, er
 			}
-			c.GetConfigs(key.ToConfigsRequest(), func(response *types.ConfigsResponse, err error) {
-				if err != nil {
-					callback(nil, err)
-					return
-				}
-				change.Key = key
-				change.NewValue = response.Value
-				changes = append(changes, change)
-			})
+			resp, er := c.GetConfigs(key.ToConfigsRequest())
+			if er != nil {
+				return nil, er
+			}
+			change.Key = key
+			change.NewValue = resp.Value
+			changes = append(changes, change)
 		}
-		callback(changes, nil)
+		return changes, nil
 	} else {
-		callback(nil, er)
+		return nil, er
 	}
 }
 
 //PublishConfig 发布配置信息
-func (c *configHttpClient) PublishConfig(request *types.PublishConfig, callback func(result *types.PublishResult, err error)) {
+func (c *configHttpClient) PublishConfig(request *types.PublishConfig) (*types.Result, error) {
 	logrus.Infof("publish configs, request:%+v", request)
-	u := toUrl(c.LB)
+	u := api.SelectOne(c.LB)
 	req, er := query.Marshal(request)
 	if er != nil {
-		callback(nil, er)
-		return
+		return nil, er
 	}
 	u = u + path.Join(Prefix, c.Option.Version, PublishConfigPath)
-	http.New().Post(u).SendString(req).EndBytes(func(response gorequest.Response, body []byte, errs []error) {
-		er = handleErrorResponse(c.Converter, response, errs)
-		if er == nil {
-			r, er := strconv.ParseBool(string(body))
-			if er != nil {
-				callback(nil, er)
-				return
-			}
-			callback(&types.PublishResult{Success: r}, nil)
-			return
+	resp, body, errs := http.New().Post(u).SendString(req).EndBytes()
+	er = handleErrorResponse(c.Converter, resp, errs)
+	if er == nil {
+		r, er := strconv.ParseBool(string(body))
+		if er != nil {
+			return nil, er
 		}
-		callback(nil, er)
-	})
+		return &types.Result{Success: r}, nil
+	}
+	return nil, er
 }
 
-func (c *configHttpClient) DeleteConfigs(request *types.ConfigsRequest, callback func(response *types.DeleteResult, err error)) {
+func (c *configHttpClient) DeleteConfigs(request *types.ConfigsRequest) (*types.Result, error) {
 	logrus.Infof("delete configs, request:%+v", request)
-	u := toUrl(c.LB)
+	u := api.SelectOne(c.LB)
 	req, er := query.Marshal(request)
 	if er != nil {
-		callback(nil, er)
-		return
+		return nil, er
 	}
 	resp, bs, errs := http.New().Delete(u + path.Join(Prefix, c.Option.Version, DeleteConfigPath)).SendString(req).EndBytes()
 	er = handleErrorResponse(c.Converter, resp, errs)
 	if er == nil {
 		r, er := strconv.ParseBool(string(bs))
 		if er != nil {
-			callback(nil, er)
-			return
+			return nil, er
 		}
-		callback(&types.DeleteResult{Success: r}, nil)
+		return &types.Result{Success: r}, nil
 	} else {
-		callback(nil, er)
-
+		return nil, er
 	}
-}
-
-func toUrl(lb loadbalancer.LB) string {
-	u := lb.SelectOne().URL.String()
-	if !strings.HasSuffix(u, "/") {
-		u = u + "/"
-	}
-	return u
 }
 
 func handleErrorResponse(converter StatusCodeConverter, resp gorequest.Response, errs []error) error {
@@ -264,27 +224,10 @@ func handleErrorResponse(converter StatusCodeConverter, resp gorequest.Response,
 		if er != nil {
 			return errors.New("go-nacos system error,statusCode:5xx")
 		}
-		return NewHttpClientError(string(data), errs...)
+		return err.NewHttpClientError(string(data), errs...)
 	}
 	if resp == nil {
-		return NewHttpClientError("valid response")
+		return err.NewHttpClientError("valid response")
 	}
 	return converter.Converter(resp.StatusCode)
-}
-
-type HttpClientError struct {
-	Errors []error
-
-	Message string
-}
-
-func NewHttpClientError(message string, errors ...error) *HttpClientError {
-	return &HttpClientError{
-		Errors:  errors,
-		Message: message,
-	}
-}
-
-func (h *HttpClientError) Error() string {
-	return fmt.Sprintf("http client apply failed, message:%s, errors:%+v", h.Message, h.Errors)
 }
