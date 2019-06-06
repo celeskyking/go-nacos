@@ -86,3 +86,8 @@ func MapToString(params map[string]string) string {
 	}
 	return strings.Join(parts, ",")
 }
+
+func GetGroupName(groupAndServiceName string) string {
+	i := strings.Index(groupAndServiceName, "@@")
+	return groupAndServiceName[:i]
+}

@@ -10,13 +10,15 @@ import (
 )
 
 func configS() ConfigService {
-	op := &api.ConfigOption{
+	op := &api.ConfigOptions{
 		Env:         "beta",
 		AppName:     "app1",
 		Namespace:   "7df0358d-8c73-4af3-8798-a54dd49aad7f",
-		Addresses:   []string{"127.0.0.1:8848"},
-		LBStrategy:  api.RoundRobin,
 		SnapshotDir: "/tmp/nacos/config/",
+		ServerOptions: &api.ServerOptions{
+			Addresses:  []string{"127.0.0.1:8848"},
+			LBStrategy: api.RoundRobin,
+		},
 	}
 	c := NewConfigService(op)
 	return c

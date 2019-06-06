@@ -5,51 +5,91 @@ import (
 	"github.com/celeskyking/go-nacos/config"
 	"github.com/celeskyking/go-nacos/naming"
 	"github.com/celeskyking/go-nacos/naming/discovery"
-	"sync"
+	"github.com/celeskyking/go-nacos/pkg/util"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
+
+var ErrSnapshotDirIsEmpty = errors.New("未指定config service的snapshot目录")
 
 //NacosFactory nacos工厂
 type Factory struct {
-	once sync.Once
-
-	namingService naming.NamingService
-
-	configService config.ConfigService
-	//配置信息
-	Config *api.ConfigOption
-
-	lock sync.Mutex
 }
 
-func NewNacosFactory(config *api.ConfigOption) *Factory {
-	return &Factory{
-		Config: config,
+func NewFactory() *Factory {
+	return &Factory{}
+}
+
+func (f *Factory) NewConfigService(options *api.ConfigOptions) config.ConfigService {
+	if options.SnapshotDir == "" {
+		logrus.Errorf("未指定config service的snapshot的目录")
+		panic(ErrSnapshotDirIsEmpty)
+	}
+	return config.NewConfigService(options)
+}
+
+func (f *Factory) NewNamingService(options *api.ServerOptions) naming.NamingService {
+	return naming.NewNamingService(options)
+}
+
+type Application struct {
+	Config *api.AppConfig
+
+	configServers *api.ServerOptions
+
+	namingServers *api.ServerOptions
+}
+
+func NewApplication(appConfig *api.AppConfig) *Application {
+	return &Application{
+		Config: appConfig,
 	}
 }
 
-func (n *Factory) NamingService() naming.NamingService {
-	if n.namingService == nil {
-		n.lock.Lock()
-		defer n.lock.Unlock()
-		if n.namingService == nil {
-			n.namingService = naming.NewNamingService(n.Config)
-		}
-	}
-	return n.namingService
+func (a *Application) SetConfigServers(options *api.ServerOptions) {
+	a.configServers = options
 }
 
-func (n *Factory) ConfigService() config.ConfigService {
-	if n.configService == nil {
-		n.lock.Lock()
-		defer n.lock.Unlock()
-		if n.configService == nil {
-			n.configService = config.NewConfigService(n.Config)
-		}
-	}
-	return n.configService
+func (a *Application) SetNamingServers(options *api.ServerOptions) {
+	a.namingServers = options
 }
 
-func (n *Factory) NewDiscoveryClient() *discovery.Client {
-	ns := n.NamingService()
-	return discovery.NewDiscoveryClient(ns)
+func (a *Application) SetServers(options *api.ServerOptions) {
+	a.namingServers = options
+	a.configServers = options
+}
+
+func (a *Application) NewConfigService(snapshotDir string) config.ConfigService {
+	if a.configServers == nil {
+		panic(errors.New("未配置nacos server信息"))
+	}
+	return config.NewConfigService(&api.ConfigOptions{
+		ServerOptions: a.configServers,
+		SnapshotDir:   snapshotDir,
+		AppName:       a.Config.AppName,
+		Env:           a.Config.Env,
+		Cluster:       a.Config.Cluster,
+		Namespace:     a.Config.Namespace,
+	})
+}
+
+func (a *Application) NewNamingService() naming.NamingService {
+	if a.namingServers == nil {
+		panic(errors.New("未配置nacos server信息"))
+	}
+	return naming.NewNamingService(a.namingServers)
+}
+
+func (a *Application) NewDiscoveryClient() *discovery.Client {
+	if a.Config.IP == "" {
+		a.Config.IP = util.LocalIP()
+	}
+	return discovery.NewDiscoveryClient(a.NewNamingService(), &api.DiscoveryOptions{
+		IP:        a.Config.IP,
+		Namespace: a.Config.Namespace,
+		AppName:   a.Config.AppName,
+		Cluster:   a.Config.Cluster,
+		Env:       a.Config.Env,
+		Port:      a.Config.Port,
+	})
 }

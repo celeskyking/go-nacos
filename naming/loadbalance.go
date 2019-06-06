@@ -3,6 +3,7 @@ package naming
 import (
 	"github.com/celeskyking/go-nacos/types"
 	"math/rand"
+	"reflect"
 	"time"
 )
 
@@ -18,6 +19,8 @@ type InternalLB interface {
 
 	//刷新服务器列表
 	Refresh(instances []*types.ServiceInstance)
+
+	GetAll() []*types.ServiceInstance
 }
 
 //NewRandom 返回一个随机选择的负载均衡算法,后续扩展更多算法
@@ -30,7 +33,16 @@ type Random struct {
 }
 
 func (r *Random) Refresh(instances []*types.ServiceInstance) {
-	r.Servers = instances
+	if len(r.Servers) == 0 {
+		r.Servers = instances
+	}
+	if !reflect.DeepEqual(r.Servers, instances) {
+		r.Servers = instances
+	}
+}
+
+func (r *Random) GetAll() []*types.ServiceInstance {
+	return r.Servers
 }
 
 func (r *Random) SelectOne(filter func(instance *types.ServiceInstance) bool) *types.ServiceInstance {

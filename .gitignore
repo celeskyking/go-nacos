@@ -90,6 +90,4 @@ fabric.properties
 .idea/
 
 
-go.sum
-
 bin/

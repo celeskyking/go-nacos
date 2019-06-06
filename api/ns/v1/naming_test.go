@@ -112,7 +112,7 @@ func TestNamingHttpClient_RegisterServiceInstance(t *testing.T) {
 	result, err := Naming.RegisterServiceInstance(&types.ServiceInstance{
 		GroupName:   "beta",
 		ServiceName: "local-2",
-		IP:          util.LocalIP(),
+		IP:          "10.10.10.15",
 		Port:        8080,
 		Metadata: util.MapToString(map[string]string{
 			"name": "tianqing.wang",

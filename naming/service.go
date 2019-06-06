@@ -25,10 +25,7 @@ type NamingService interface {
 	GetInstances(serviceName string, options *QueryOptions) (*ServerList, error)
 
 	//GetAllService 返回所有的服务信息,服务的个数和服务的名称列表
-	GetAllServices(namespaceID string) (int, []string, error)
-
-	//返回命名空间下制定页的所有服务
-	GetServices(namespaceID string, pageNo, pageSize int) (int, []string, error)
+	GetAllServices(namespaceID string) (int, []*types.CatalogServiceDetail, error)
 
 	//返回所有的
 	GetAllServicesCount(namespaceID string) (int, error)
@@ -45,7 +42,8 @@ type NamingService interface {
 	//http客户端
 	HttpClient() v1.NamingHttpClient
 
-	GetConfig() *api.ConfigOption
+	//Config
+	GetConfig() *api.ServerOptions
 }
 
 //QueryOptions 查询的选项
@@ -62,26 +60,26 @@ type QueryOptions struct {
 	Watch bool
 }
 
-func NewNamingService(config *api.ConfigOption) NamingService {
+func NewNamingService(config *api.ServerOptions) NamingService {
 	httpOption := api.DefaultOption()
 	httpOption.Servers = config.Addresses
 	httpOption.LBStrategy = config.LBStrategy
 	httpClient := v1.NewNamingHttpClient(httpOption)
-	lb := httpClient.LoadBalance()
 	stopC := make(chan struct{})
 	ns := &namingService{
 		Config:       config,
 		httpClient:   httpClient,
-		pushReceiver: v1.NewPushReceiver(lb),
+		pushReceiver: v1.NewPushReceiver(),
 		stopC:        stopC,
 	}
+	go ns.pushReceiver.Start()
 	return ns
 }
 
 // namingService implement NamingService
 type namingService struct {
 	//当前的配置信息
-	Config *api.ConfigOption
+	Config *api.ServerOptions
 
 	httpClient v1.NamingHttpClient
 	//推送接收
@@ -124,7 +122,7 @@ func (n *namingService) SetInstanceHealthy(serviceName string, option *QueryOpti
 	return nil
 }
 
-func (n *namingService) GetConfig() *api.ConfigOption {
+func (n *namingService) GetConfig() *api.ServerOptions {
 	return n.Config
 }
 
@@ -153,33 +151,17 @@ func (n *namingService) PatchCluster(cluster *types.Cluster) error {
 //GetInstances 返回制定services的所有的实例信息
 //todo 支持failover
 func (n *namingService) GetInstances(serviceName string, options *QueryOptions) (*ServerList, error) {
-	r, lastRefTime, clusters, er := n.SelectInstances(serviceName, options)
-	if er != nil {
-		return nil, er
-	}
-	sl := NewServerList(r, n.pushReceiver, options.Watch, lastRefTime, serviceName, clusters)
-	sl.Start(n.stopC)
-	return sl, nil
+	sl := NewServerList(n.httpClient, n.pushReceiver, options.Watch, serviceName, options.Group, options.Namespace, options.Cluster)
+	er := sl.Listen(n.stopC)
+	return sl, er
 }
 
-func (n *namingService) GetAllServices(namespaceID string) (int, []string, error) {
-	c, er := n.GetAllServicesCount(namespaceID)
+func (n *namingService) GetAllServices(namespaceID string) (int, []*types.CatalogServiceDetail, error) {
+	services, er := n.httpClient.CatalogServices(true, namespaceID)
 	if er != nil {
 		return 0, nil, er
 	}
-	r, er := n.httpClient.ListService(&types.ServiceListOption{PageNo: 1, PageSize: c, NamespaceID: namespaceID})
-	if er != nil {
-		return 0, nil, er
-	}
-	return r.Count, r.Doms, nil
-}
-
-func (n *namingService) GetServices(namespaceID string, pageNo, pageSize int) (int, []string, error) {
-	r, er := n.httpClient.ListService(&types.ServiceListOption{PageNo: pageNo, PageSize: pageSize, NamespaceID: namespaceID})
-	if er != nil {
-		return 0, nil, er
-	}
-	return r.Count, r.Doms, nil
+	return len(services), services, nil
 }
 
 func (n *namingService) GetAllServicesCount(namespaceID string) (int, error) {
@@ -199,37 +181,37 @@ func (n *namingService) Stop() {
 
 }
 
-func (n *namingService) SelectInstances(serviceName string, options *QueryOptions) (instances []*types.ServiceInstance, lastRefTime int64, clusters string, er error) {
-	req := buildQueryListRequest(serviceName, options, false)
-	r, er := n.httpClient.ListServiceInstance(req)
+func selectInstances(httpClient v1.NamingHttpClient, serviceName string, options *QueryOptions) (instances []*types.ServiceInstance, result *types.ServiceInstanceListResult, er error) {
+	req := buildQueryListRequest(serviceName, options, options.Watch)
+	r, er := httpClient.ListServiceInstance(req)
 	if er != nil {
-		return nil, 0, "", er
+		return nil, nil, er
 	}
 	if len(r.Hosts) == 0 {
-		return nil, 0, "", nil
+		return nil, nil, nil
 	}
 	var results []*types.ServiceInstance
 	for _, h := range r.Hosts {
-		parts := strings.Split(h.InstanceID, "-")
+		parts := strings.Split(h.InstanceID, "#")
 		results = append(results, &types.ServiceInstance{
 			IP:          parts[0],
 			Port:        stringToInt(parts[1]),
 			ServiceName: parts[3],
 			GroupName:   options.Group,
 			NamespaceID: options.Namespace,
-			ClusterName: parts[2],
-			Ephemeral:   true,
+			ClusterName: h.ClusterName,
+			Ephemeral:   h.Ephemeral,
 			Metadata:    util.MapToString(h.Metadata),
 		})
 	}
-	return results, r.LastRefTime, r.Clusters, nil
+	return results, r, nil
 }
 
 func buildQueryListRequest(appName string, options *QueryOptions, subscriber bool) *types.ServiceInstanceListOption {
 	req := &types.ServiceInstanceListOption{}
 	req.ServiceName = appName
 	if options.Group != "" {
-		req.GroupName = options.Group
+		req.ServiceName = options.Group + Splitter + appName
 	}
 	if options.Namespace != "" {
 		req.NamespaceID = options.Namespace
@@ -240,7 +222,7 @@ func buildQueryListRequest(appName string, options *QueryOptions, subscriber boo
 	req.HealthyOnly = options.Healthy
 	if subscriber {
 		req.ClientIP = util.LocalIP()
-		req.UdpPort = v1.UDPPort
+		req.UdpPort = v1.GetUDPPort()
 	}
 	return req
 }

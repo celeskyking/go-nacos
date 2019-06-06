@@ -35,9 +35,8 @@ type Client struct {
 	stopC chan struct{}
 }
 
-func NewDiscoveryClient(service naming.NamingService) *Client {
+func NewDiscoveryClient(naming naming.NamingService, config *api.DiscoveryOptions) *Client {
 	ip := util.LocalIP()
-	config := service.GetConfig()
 	c := &Client{
 		IP:        ip,
 		Port:      config.Port,
@@ -46,14 +45,10 @@ func NewDiscoveryClient(service naming.NamingService) *Client {
 		AppName:   config.AppName,
 		Env:       config.Env,
 		stopC:     make(chan struct{}, 0),
-		naming:    service,
+		naming:    naming,
+		Ephemeral: true,
 	}
 	return c
-}
-
-func NewDiscoveryClientFromConfig(config *api.ConfigOption) *Client {
-	naming := naming.NewNamingService(config)
-	return NewDiscoveryClient(naming)
 }
 
 func (c *Client) Naming() naming.NamingService {
@@ -85,9 +80,9 @@ func (c *Client) Register() error {
 		ServiceName: c.AppName,
 		GroupName:   c.Env,
 		ClusterName: c.Cluster,
-		Ephemeral:   true,
+		Ephemeral:   c.Ephemeral,
 		Weight:      1.0,
-		Healthy:     true,
+		Healthy:     c.InitHealthy,
 		Enable:      true,
 	}
 	er := c.naming.RegisterInstance(req)
@@ -111,4 +106,8 @@ func (c *Client) Deregister() error {
 	}
 	c.naming.Stop()
 	return nil
+}
+
+func (c *Client) GetInstances(serviceName string, options *naming.QueryOptions) (*naming.ServerList, error) {
+	return c.naming.GetInstances(serviceName, options)
 }

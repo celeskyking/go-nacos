@@ -6,6 +6,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"net/url"
 	"reflect"
+	"strings"
 	"sync"
 	"time"
 )
@@ -242,7 +243,7 @@ type Server struct {
 }
 
 func (s *Server) GetHost() string {
-	return s.URL.Host
+	return s.URL.Host[:strings.Index(s.URL.Host, ":")]
 }
 
 func NewServer(url *url.URL, weight int, healthPath string) *Server {

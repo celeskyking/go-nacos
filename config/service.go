@@ -28,25 +28,27 @@ type ConfigService interface {
 	Watch()
 
 	StopWatch()
+
+	HttpClient() v1.ConfigHttpClient
 }
 
-func NewConfigService(option *api.ConfigOption) ConfigService {
+func NewConfigService(options *api.ConfigOptions) ConfigService {
 	httpOption := api.DefaultOption()
-	httpOption.Servers = option.Addresses
-	httpOption.LBStrategy = option.LBStrategy
+	httpOption.Servers = options.Addresses
+	httpOption.LBStrategy = options.LBStrategy
 	httpClient := v1.NewConfigHttpClient(httpOption)
 	var loaders []loader.Loader
-	localLoader := loader.NewLocalLoader(option.SnapshotDir)
+	localLoader := loader.NewLocalLoader(options.SnapshotDir)
 	loaders = append(loaders, loader.NewRemoteLoader(httpClient))
 	loaders = append(loaders, localLoader)
 	return &configService{
-		Env:            option.Env,
-		Namespace:      option.Namespace,
-		AppName:        option.AppName,
+		Env:            options.Env,
+		Namespace:      options.Namespace,
+		AppName:        options.AppName,
 		fileNotifier:   make(map[string]chan []byte, 0),
 		fileVersion:    make(map[string]string, 0),
 		status:         false,
-		SnapshotDir:    option.SnapshotDir,
+		SnapshotDir:    options.SnapshotDir,
 		loaders:        loaders,
 		httpClient:     httpClient,
 		snapshotWriter: localLoader.(loader.SnapshotWriter),
@@ -78,6 +80,8 @@ type configService struct {
 	httpClient v1.ConfigHttpClient
 
 	snapshotWriter loader.SnapshotWriter
+
+	watched bool
 }
 
 func (c *configService) Properties(file string) (*properties.MapFile, error) {
@@ -86,6 +90,10 @@ func (c *configService) Properties(file string) (*properties.MapFile, error) {
 		return nil, er
 	}
 	return f.(*properties.MapFile), nil
+}
+
+func (c *configService) HttpClient() v1.ConfigHttpClient {
+	return c.httpClient
 }
 
 func (c *configService) getFile(file string) ([]byte, error) {
@@ -138,6 +146,10 @@ func (c *configService) Custom(file string, converter FileConverter) (FileMirror
 
 	}
 	go f.OnChanged(c.fileNotifier[file])
+	if !c.watched {
+		c.watched = true
+		c.Watch()
+	}
 	c.fileVersion[k] = m
 	return f, nil
 }
@@ -220,6 +232,9 @@ func buildFileKey(namespace, app, env, file string) string {
 
 func (c *configService) listenKeys() ([]*types2.ListenKey, error) {
 	var keys []*types2.ListenKey
+	if len(c.fileNotifier) == 0 {
+		return nil, nil
+	}
 	for k := range c.fileNotifier {
 		listenKey, er := types2.ParseListenKey(k)
 		if er != nil {

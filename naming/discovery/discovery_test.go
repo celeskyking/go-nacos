@@ -3,19 +3,37 @@ package discovery
 import (
 	"fmt"
 	"github.com/celeskyking/go-nacos/api"
+	"github.com/celeskyking/go-nacos/naming"
 	"testing"
+	"time"
 )
 
-func TestNewDiscoveryClient(t *testing.T) {
-	config := &api.ConfigOption{
-		AppName:    "demo",
-		Env:        "dev",
-		Namespace:  "7df0358d-8c73-4af3-8798-a54dd49aad7f",
-		Addresses:  []string{"127.0.0.1:8848"},
-		LBStrategy: api.RoundRobin,
-		Port:       8848,
+var client *Client
+
+func init() {
+	config := &api.ServerOptions{
+		Addresses:       []string{"127.0.0.1:8848"},
+		LBStrategy:      api.RoundRobin,
+		EndpointEnabled: false,
 	}
-	c := NewDiscoveryClientFromConfig(config)
+
+	appConfig := &api.DiscoveryOptions{
+		AppName:   "demo",
+		Env:       "dev",
+		Namespace: "7df0358d-8c73-4af3-8798-a54dd49aad7f",
+		Cluster:   "",
+		Port:      8848,
+	}
+	ns := naming.NewNamingService(config)
+	client = NewDiscoveryClient(ns, appConfig)
+	er := client.Register()
+	if er != nil {
+		panic(er)
+	}
+}
+
+func TestNewDiscoveryClient(t *testing.T) {
+	c := client
 	er := c.Register()
 	if er != nil {
 		panic(er)
@@ -32,5 +50,21 @@ func TestNewDiscoveryClient(t *testing.T) {
 	er = c.Deregister()
 	if er != nil {
 		panic(er)
+	}
+}
+
+func TestClient_GetInstances(t *testing.T) {
+	sl, er := client.GetInstances("local-2", &naming.QueryOptions{
+		Group: "beta",
+		Watch: true,
+	})
+	if er != nil {
+		panic(er)
+	}
+	for _, s := range sl.GetAll() {
+		fmt.Printf("instance : %+v\n", s)
+	}
+	for {
+		time.Sleep(time.Second)
 	}
 }

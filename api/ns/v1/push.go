@@ -1,14 +1,10 @@
 package v1
 
 import (
-	"bytes"
-	"compress/gzip"
 	"encoding/json"
-	"github.com/celeskyking/go-nacos/client/loadbalancer"
 	"github.com/celeskyking/go-nacos/pkg/util"
 	"github.com/celeskyking/go-nacos/types"
 	"github.com/sirupsen/logrus"
-	"io/ioutil"
 	"math/rand"
 	"net"
 	"strconv"
@@ -23,11 +19,10 @@ var (
 	GzipMagicCode = []byte("\x1F\x8B")
 )
 
-func NewPushReceiver(lb loadbalancer.LB) *PushReceiver {
+func NewPushReceiver() *PushReceiver {
 	return &PushReceiver{
 		QuitC:   make(chan struct{}, 0),
 		NotifyC: make(chan *PushMessage, 100),
-		LB:      lb,
 	}
 }
 
@@ -37,8 +32,6 @@ type PushReceiver struct {
 	QuitC chan struct{}
 
 	NotifyC chan *PushMessage
-
-	LB loadbalancer.LB
 }
 
 type PushData struct {
@@ -87,16 +80,12 @@ func (u *PushReceiver) GetNotifyChannel() <-chan *PushMessage {
 }
 
 func (u *PushReceiver) Listen() (*net.UDPConn, bool) {
-	s := u.selectServer(u.LB)
-	if s == nil {
-		logrus.Errorf("no nacos server worked")
-		return nil, false
-	}
-	addr, err := net.ResolveUDPAddr("udp", s.GetHost()+":"+strconv.Itoa(u.Port))
+	addr, err := net.ResolveUDPAddr("udp", "0.0.0.0:"+strconv.Itoa(u.Port))
 	if err != nil {
 		logrus.Errorf("listen to nacos push service failed:%+v", err)
 		return nil, false
 	}
+	logrus.Infof("udp server started, addr:%s", addr.String())
 	connection, err := net.ListenUDP("udp", addr)
 	if err != nil {
 		logrus.Error("listen error", err)
@@ -106,73 +95,59 @@ func (u *PushReceiver) Listen() (*net.UDPConn, bool) {
 }
 
 func (u *PushReceiver) consume(conn *net.UDPConn) {
-	data := make([]byte, 4096)
+	data := make([]byte, 64*1024)
 	n, remoteAddr, err := conn.ReadFromUDP(data)
 	if err != nil {
 		logrus.Error("failed to read UDP msg because of ", err)
 		return
 	}
-	s := DecompressData(data[:n])
-	logrus.Info("receive push: "+s+" from: ", remoteAddr)
+	logrus.Infof("receive push message from %s\n", remoteAddr.String())
 	var pushData PushData
-	er := json.Unmarshal([]byte(s), &pushData)
+	j := data[:n]
+	logrus.Infof("push message:%s", string(j))
+	er := json.Unmarshal([]byte(j), &pushData)
 	if er != nil {
 		logrus.Error("failed to process push data", er)
 		return
 	}
-	var pushMessage PushMessage
-	er = json.Unmarshal([]byte(pushData.Data), &pushMessage)
-	if er != nil {
-		logrus.Errorf("failed to unmarshal json string:%+v", er)
+
+	ack := make(map[string]string, 4)
+	if pushData.Type == "dom" || pushData.Type == "service" {
+		var pushMessage PushMessage
+		er = json.Unmarshal([]byte(pushData.Data), &pushMessage)
+		if er != nil {
+			logrus.Errorf("failed to unmarshal json string:%+v", er)
+			return
+		}
+		if len(pushMessage.Hosts) == 0 {
+			logrus.Errorf("get empty ip list, ignore it, dom:%s", pushMessage.Dom)
+			return
+		}
+		u.NotifyC <- &pushMessage
+		ack["type"] = "push-ack"
+		ack["data"] = ""
+		//todo
+	} else if pushData.Type == "dump" {
+		ack["type"] = "dump-ack"
+		ack["data"] = ""
+	} else {
+		ack["type"] = "unknown-ack"
+		ack["data"] = ""
 	}
-	if len(pushMessage.Hosts) == 0 {
-		logrus.Errorf("get empty ip list, ignore it, dom:%s", pushMessage.Dom)
+	ack["lastRefTime"] = strconv.FormatInt(pushData.LastRefTime, 10)
+	ackData, er := json.Marshal(ack)
+	if er != nil {
+		logrus.Error("push message encode ack failed", er)
 		return
 	}
-	u.NotifyC <- &pushMessage
-	logrus.Infof("receive message:%+v", pushMessage)
-
-}
-
-func (u *PushReceiver) selectServer(lb loadbalancer.LB) *loadbalancer.Server {
-	l := len(lb.GetServers())
-	if l == 0 {
-		return nil
+	_, er = conn.WriteToUDP(ackData, remoteAddr)
+	if er != nil {
+		logrus.Error("push message ack failed", er)
 	}
-	return lb.GetServers()[rand.Intn(l-1)]
 }
 
 func GetUDPPort() int {
 	return UDPPort
-}
-
-func IsGzipFile(data []byte) bool {
-	if len(data) < 2 {
-		return false
-	}
-
-	return bytes.HasPrefix(data, GzipMagicCode)
-}
-
-func DecompressData(data []byte) string {
-	if IsGzipFile(data) {
-		return string(data)
-	}
-	reader, err := gzip.NewReader(bytes.NewReader(data))
-	if err != nil {
-		logrus.Error("failed to decompress gzip data", err)
-		return ""
-	}
-
-	defer func() {
-		_ = reader.Close()
-	}()
-	bs, er := ioutil.ReadAll(reader)
-	if er != nil {
-		logrus.Warn("failed to decompress gzip data", er)
-		return ""
-	}
-	return string(bs)
 }
 
 type Ack struct {
@@ -185,10 +160,13 @@ type Ack struct {
 
 type PushMessage struct {
 	Name string `json:"name"`
+
 	//serviceName
 	Dom string `json:"dom"`
 
 	Clusters string `json:"clusters"`
+
+	GroupName string `json:"groupName"`
 
 	CacheMillis int64 `json:"cacheMillis"`
 
@@ -196,5 +174,5 @@ type PushMessage struct {
 
 	Checksum string `json:"checksum"`
 
-	Hosts []*types.ServiceInstance `json:"hosts"`
+	Hosts []*types.Host `json:"hosts"`
 }

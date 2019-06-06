@@ -162,8 +162,6 @@ type HeartBeatResult struct {
 type ServiceInstanceListOption struct {
 	ServiceName string `query:"serviceName" validate:"required"`
 
-	GroupName string `query:"groupName"`
-
 	NamespaceID string `query:"namespaceId"`
 
 	Clusters string `query:"clusters"`
@@ -178,9 +176,9 @@ type ServiceInstanceListOption struct {
 type ServiceInstanceListResult struct {
 	Dom string `json:"dom"`
 
-	CacheMillis int `json:"cacheMillis"`
+	Name string `json:"name"`
 
-	UseSpecifiedURL bool `json:"useSpecifiedURL"`
+	CacheMillis int `json:"cacheMillis"`
 
 	Hosts []*Host `json:"hosts"`
 
@@ -191,6 +189,8 @@ type ServiceInstanceListResult struct {
 	Env string `json:"env"`
 
 	Clusters string `json:"clusters"`
+
+	Metadata map[string]string `json:"metadata"`
 }
 
 type Host struct {
@@ -200,6 +200,10 @@ type Host struct {
 
 	InstanceID string `json:"instanceId"`
 
+	Enabled bool `json:"enabled"`
+
+	Healthy bool `json:"healthy"`
+
 	Port int `json:"port"`
 
 	IP string `json:"ip"`
@@ -207,6 +211,12 @@ type Host struct {
 	Weight float64 `json:"weight"`
 
 	Metadata map[string]string `json:"metadata,omitempty"`
+
+	ServiceName string `json:"serviceName"`
+
+	Ephemeral bool `json:"ephemeral"`
+
+	ClusterName string `json:"clusterName"`
 }
 
 type InstanceDetail struct {
@@ -219,6 +229,8 @@ type InstanceDetail struct {
 	Service string `json:"service"`
 
 	Healthy bool `json:"healthy"`
+
+	Enabled bool `json:"enabled"`
 
 	IP string `json:"ip"`
 
