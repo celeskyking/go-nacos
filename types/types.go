@@ -576,3 +576,14 @@ func NewMySQLHealthChecker(user, pwd, cmd string) *MySQLHealthChecker {
 		Cmd:  cmd,
 	}
 }
+
+type FileDesc struct {
+	//
+	Name string
+	//应用名
+	AppName string
+	//环境
+	Env string
+
+	Namespace string
+}

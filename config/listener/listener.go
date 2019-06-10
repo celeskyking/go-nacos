@@ -1,7 +1,7 @@
 package listener
 
 import (
-	"github.com/celeskyking/go-nacos/config"
+	"github.com/celeskyking/go-nacos/types"
 )
 
 type EventType int
@@ -19,24 +19,24 @@ const (
 type FileListener interface {
 
 	//当文件变更的时候触发
-	OnChange(oldContent, newContent []byte, ctx *config.FileDesc)
+	OnChange(oldContent, newContent []byte, ctx *types.FileDesc)
 }
 
 //ValueListener 用来监听指定key的value发生了变更
 type ValueListener interface {
 
 	//OnChange 当发生值变更的时候会触发
-	OnChange(key string, curValue, newValue string, ctx *config.FileDesc)
+	OnChange(key string, curValue, newValue string, ctx *types.FileDesc)
 }
 
-type FileListenerFunc func(oldContent, newContent []byte, ctx *config.FileDesc)
+type FileListenerFunc func(oldContent, newContent []byte, ctx *types.FileDesc)
 
-func (f FileListenerFunc) OnChange(oldContent, newContent []byte, ctx *config.FileDesc) {
+func (f FileListenerFunc) OnChange(oldContent, newContent []byte, ctx *types.FileDesc) {
 	f(oldContent, newContent, ctx)
 }
 
-type ValueListenerFunc func(key string, curValue, newValue string, ctx *config.FileDesc)
+type ValueListenerFunc func(key string, curValue, newValue string, ctx *types.FileDesc)
 
-func (f ValueListenerFunc) OnChange(key string, curValue, newValue string, ctx *config.FileDesc) {
+func (f ValueListenerFunc) OnChange(key string, curValue, newValue string, ctx *types.FileDesc) {
 	f(key, curValue, newValue, ctx)
 }

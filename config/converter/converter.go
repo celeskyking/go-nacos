@@ -1,6 +1,8 @@
-package config
+package converter
 
 import (
+	"github.com/celeskyking/go-nacos/api/cs"
+	"github.com/celeskyking/go-nacos/types"
 	"sync"
 )
 
@@ -38,11 +40,11 @@ func GetConverter(name string) FileConverter {
 
 type FileConverter interface {
 	//转换器
-	Convert(desc *FileDesc, content []byte) FileMirror
+	Convert(desc *types.FileDesc, content []byte) cs.FileMirror
 }
 
-type FileConverterFunc func(desc *FileDesc, content []byte) FileMirror
+type FileConverterFunc func(desc *types.FileDesc, content []byte) cs.FileMirror
 
-func (f FileConverterFunc) Convert(desc *FileDesc, content []byte) FileMirror {
+func (f FileConverterFunc) Convert(desc *types.FileDesc, content []byte) cs.FileMirror {
 	return f(desc, content)
 }

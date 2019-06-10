@@ -1,4 +1,6 @@
-package config
+package cs
+
+import "github.com/celeskyking/go-nacos/types"
 
 type FileMirror interface {
 
@@ -9,19 +11,8 @@ type FileMirror interface {
 	GetContent() []byte
 
 	//文件描述
-	Desc() *FileDesc
+	Desc() *types.FileDesc
 
 	//文件的md5值
 	MD5() string
-}
-
-type FileDesc struct {
-	//
-	Name string
-	//应用名
-	AppName string
-	//环境
-	Env string
-
-	Namespace string
 }

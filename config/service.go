@@ -3,13 +3,15 @@ package config
 import (
 	"context"
 	"github.com/celeskyking/go-nacos/api"
+	"github.com/celeskyking/go-nacos/api/cs"
 	v1 "github.com/celeskyking/go-nacos/api/cs/v1"
+	"github.com/celeskyking/go-nacos/config/converter"
 	"github.com/celeskyking/go-nacos/config/converter/loader"
 	"github.com/celeskyking/go-nacos/config/converter/properties"
 	"github.com/celeskyking/go-nacos/err"
 	"github.com/celeskyking/go-nacos/pkg/pool"
 	"github.com/celeskyking/go-nacos/pkg/util"
-	types2 "github.com/celeskyking/go-nacos/types"
+	"github.com/celeskyking/go-nacos/types"
 	"github.com/sirupsen/logrus"
 	"os"
 	"strings"
@@ -23,7 +25,7 @@ type ConfigService interface {
 	Properties(file string) (*properties.MapFile, error)
 
 	//文件
-	Custom(file string, c FileConverter) (FileMirror, error)
+	Custom(file string, c converter.FileConverter) (cs.FileMirror, error)
 
 	Watch()
 
@@ -85,7 +87,7 @@ type configService struct {
 }
 
 func (c *configService) Properties(file string) (*properties.MapFile, error) {
-	f, er := c.Custom(file, GetConverter("properties"))
+	f, er := c.Custom(file, converter.GetConverter("properties"))
 	if er != nil {
 		return nil, er
 	}
@@ -97,7 +99,7 @@ func (c *configService) HttpClient() v1.ConfigHttpClient {
 }
 
 func (c *configService) getFile(file string) ([]byte, error) {
-	desc := &FileDesc{
+	desc := &types.FileDesc{
 		Name:      file,
 		Namespace: c.Namespace,
 		AppName:   c.AppName,
@@ -127,12 +129,12 @@ func (c *configService) getFile(file string) ([]byte, error) {
 	return nil, err.ErrLoaderNotWork
 }
 
-func (c *configService) Custom(file string, converter FileConverter) (FileMirror, error) {
+func (c *configService) Custom(file string, converter converter.FileConverter) (cs.FileMirror, error) {
 	bs, er := c.getFile(file)
 	if er != nil {
 		return nil, er
 	}
-	f := converter.Convert(&FileDesc{
+	f := converter.Convert(&types.FileDesc{
 		Namespace: c.Namespace,
 		AppName:   c.AppName,
 		Env:       c.Env,
@@ -169,7 +171,7 @@ func (c *configService) Watch() {
 				logrus.Errorf("listen nacos file error:%+v", er)
 				os.Exit(1)
 			}
-			changes, er := c.httpClient.ListenConfigs(&types2.ListenConfigsRequest{
+			changes, er := c.httpClient.ListenConfigs(&types.ListenConfigsRequest{
 				ListeningConfigs: list,
 			})
 			if er != nil {
@@ -185,7 +187,7 @@ func (c *configService) Watch() {
 					k.ContentMD5 = ""
 					vb := []byte(v)
 					parts := strings.Split(k.Group, ":")
-					desc := &FileDesc{
+					desc := &types.FileDesc{
 						Namespace: c.Namespace,
 						Name:      k.DataID,
 						AppName:   parts[0],
@@ -207,7 +209,7 @@ func (c *configService) Watch() {
 	}()
 }
 
-func (c *configService) flushSnapshot(desc *FileDesc, content []byte) {
+func (c *configService) flushSnapshot(desc *types.FileDesc, content []byte) {
 	er := c.snapshotWriter.Write(desc, content)
 	if er != nil {
 		logrus.Errorf("snapshot flush content error:%+v", er)
@@ -222,7 +224,7 @@ func (c *configService) StopWatch() {
 }
 
 func buildFileKey(namespace, app, env, file string) string {
-	key := &types2.ListenKey{
+	key := &types.ListenKey{
 		Tenant: namespace,
 		Group:  app + ":" + env,
 		DataID: file,
@@ -230,13 +232,13 @@ func buildFileKey(namespace, app, env, file string) string {
 	return key.Line()
 }
 
-func (c *configService) listenKeys() ([]*types2.ListenKey, error) {
-	var keys []*types2.ListenKey
+func (c *configService) listenKeys() ([]*types.ListenKey, error) {
+	var keys []*types.ListenKey
 	if len(c.fileNotifier) == 0 {
 		return nil, nil
 	}
 	for k := range c.fileNotifier {
-		listenKey, er := types2.ParseListenKey(k)
+		listenKey, er := types.ParseListenKey(k)
 		if er != nil {
 			return nil, er
 		}

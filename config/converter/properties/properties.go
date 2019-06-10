@@ -6,10 +6,12 @@ import (
 	"context"
 	"crypto/md5"
 	"encoding/hex"
-	"github.com/celeskyking/go-nacos/config"
+	"github.com/celeskyking/go-nacos/api/cs"
+	"github.com/celeskyking/go-nacos/config/converter"
 	"github.com/celeskyking/go-nacos/config/listener"
 	"github.com/celeskyking/go-nacos/err"
 	"github.com/celeskyking/go-nacos/pkg/pool"
+	"github.com/celeskyking/go-nacos/types"
 	"github.com/sirupsen/logrus"
 	"os"
 	"strconv"
@@ -17,7 +19,7 @@ import (
 )
 
 func init() {
-	config.RegisterConverter("properties", func(desc *config.FileDesc, content []byte) config.FileMirror {
+	converter.RegisterConverter("properties", func(desc *types.FileDesc, content []byte) cs.FileMirror {
 		f, er := NewMapFile(desc, content)
 		if er != nil {
 			logrus.Errorf("load map file converter failed:%+v", er)
@@ -37,7 +39,7 @@ type Change struct {
 	NewValue string
 }
 
-func NewMapFile(desc *config.FileDesc, content []byte) (*MapFile, error) {
+func NewMapFile(desc *types.FileDesc, content []byte) (*MapFile, error) {
 	f := &MapFile{Init: true}
 	er := refresh(f, content)
 	if er != nil {
@@ -194,7 +196,7 @@ type MapFile struct {
 	params map[string]string
 
 	//根据namespace:env:appName 计算出来的hash值,md5，忽略碰撞的情况
-	desc *config.FileDesc
+	desc *types.FileDesc
 
 	//文件的原值
 	content []byte
@@ -225,7 +227,7 @@ func (m *MapFile) GetContent() []byte {
 	return m.content
 }
 
-func (m *MapFile) Desc() *config.FileDesc {
+func (m *MapFile) Desc() *types.FileDesc {
 	return m.desc
 }
 
