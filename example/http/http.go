@@ -17,6 +17,11 @@ func main() {
 		IP: util.LocalIP(),
 	}
 	app := nacos.NewApplication(appConfig)
+	app.SetServers(&api.ServerOptions{
+		Addresses:       []string{"127.0.0.1:8848"},
+		LBStrategy:      api.RoundRobin,
+		EndpointEnabled: false,
+	})
 	configService := app.NewConfigService("/tmp/nacos/config")
 	//可以直接转化为底层http的api，对应nacos的openapi
 	//namingService := app.NewNamingService()

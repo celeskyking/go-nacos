@@ -9,6 +9,9 @@ Nacos的Go客户端,不仅封装了OpenApi，参考Nacos的Java Client封装了�
 ## 快速开始
 
 
+> go get -u github.com/celeskyking/go-nacos@dev
+
+
 ### Config
 
 
@@ -51,13 +54,18 @@ func main() {
 		IP:util.LocalIP(),
 	}
 	app := nacos.NewApplication(appConfig)
+	app.SetServers(&api.ServerOptions{
+    		Addresses:[]string{"127.0.0.1:8848"},
+    		LBStrategy:api.RoundRobin,
+    		EndpointEnabled:false,
+    	})
 	configService := app.NewConfigService("/tmp/nacos/config/snapshot")
 	//目前只支持properties文件,不过支持自定义格式文件的扩展,Custom方法
 	file, er := configService.Properties("demo.properties")
 	if er != nil {
 		panic(er)
 	}
-	file.ListenValue("name", func(key string, curValue, newValue string, ctx *config.FileDesc) {
+	file.ListenValue("name", func(key string, curValue, newValue string, ctx *types.FileDesc) {
 		fmt.Println("new value:"+newValue)
 	})
 	n := file.MustGet("name")
@@ -107,6 +115,11 @@ func main() {
 		IP:util.LocalIP(),
 	}
 	app := nacos.NewApplication(appConfig)
+	app.SetServers(&api.ServerOptions{
+    		Addresses:[]string{"127.0.0.1:8848"},
+    		LBStrategy:api.RoundRobin,
+    		EndpointEnabled:false,
+    	})
 	ns := app.NewNamingService()
 	er := ns.RegisterInstance(&types.ServiceInstance{
 		GroupName:   "beta",
@@ -152,6 +165,11 @@ func main() {
 		IP:util.LocalIP(),
 	}
 	app := nacos.NewApplication(appConfig)
+	app.SetServers(&api.ServerOptions{
+    		Addresses:[]string{"127.0.0.1:8848"},
+    		LBStrategy:api.RoundRobin,
+    		EndpointEnabled:false,
+    	})
 	dc := app.NewDiscoveryClient()
 	er := dc.Register()
 	if er != nil {
@@ -202,6 +220,11 @@ func main () {
 		IP:util.LocalIP(),
 	}
 	app := nacos.NewApplication(appConfig)
+	app.SetServers(&api.ServerOptions{
+    		Addresses:[]string{"127.0.0.1:8848"},
+    		LBStrategy:api.RoundRobin,
+    		EndpointEnabled:false,
+    	})
 	configService := app.NewConfigService("/tmp/nacos/config")
 	//可以直接转化为底层http的api，对应nacos的openapi
 	//namingService := app.NewNamingService()

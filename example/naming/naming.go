@@ -16,6 +16,11 @@ func main() {
 		IP: util.LocalIP(),
 	}
 	app := nacos.NewApplication(appConfig)
+	app.SetServers(&api.ServerOptions{
+		Addresses:       []string{"127.0.0.1:8848"},
+		LBStrategy:      api.RoundRobin,
+		EndpointEnabled: false,
+	})
 	ns := app.NewNamingService()
 	er := ns.RegisterInstance(&types.ServiceInstance{
 		GroupName:   "beta",

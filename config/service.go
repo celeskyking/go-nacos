@@ -122,11 +122,11 @@ func (c *configService) getFile(file string) ([]byte, error) {
 			}
 			return data, nil
 		} else {
-			logrus.Errorf("load error:%+v", er)
+			logrus.Errorf("file not found, file:%+v", desc)
 			continue
 		}
 	}
-	return nil, err.ErrLoaderNotWork
+	return nil, err.ErrFileNotFound
 }
 
 func (c *configService) Custom(file string, converter converter.FileConverter) (cs.FileMirror, error) {
