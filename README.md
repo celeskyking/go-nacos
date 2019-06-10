@@ -1,7 +1,9 @@
 # Go-Nacos
 
-基本功能开发完成,大部分重要的API已经通过了测试,需要更全面的测试
 
+## 简介
+Nacos的Go客户端,不仅封装了OpenApi，参考Nacos的Java Client封装了一些高级功能，加入了Endpoint的支持，支持针对于Nacos Servers
+的客户端负载均衡能力。ConfigServer支持本地快照。NamingService支持AP和CP模式,支持自定义HealthCheck等。
 
 
 ## 快速开始
@@ -9,6 +11,21 @@
 
 ### Config
 
+
+ConfigHttpClient 实现了Nacos 1.0.0的OpenApi的接口能力,
+ConfigService是一个对于OpenApi的高级封装,定义了一些最佳实践的api
+
+#### 概念
+
+* AppName  
+    整体思路是以应用为中心,对齐Discovery和ConfigService的概念，AppName:Env对应Nacos的Group概念
+* Env
+    当前的应用的所归属的环境信息,与AppName配合使用,对应Nacos的Group的概念
+* Namespace
+    租户的概念，概念对应Nacos的Namespace
+
+
+#### 例子
 
 ```go
 import (
@@ -54,6 +71,23 @@ func main() {
 
 
 ### NamingService
+
+NamingHttpClient 实现了Nacos 1.0.0的OpenApi的接口能力,
+NamingService是一个简单封装,把服务发现和注册的能力统一封装了一下。
+
+
+#### 概念
+
+* AppName  
+    整体思路是以应用为中心，AppName:Env对应Nacos的Group概念
+* Env
+    当前的应用的所归属的环境信息,与AppName配合使用,对应Nacos的Group的概念
+* Namespace
+    租户的概念，概念对应Nacos的Namespace
+* Cluster
+    实例的分组关键字,概念对齐Nacos的Cluster
+
+   
 
 ```go
 
