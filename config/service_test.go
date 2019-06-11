@@ -2,9 +2,9 @@ package config
 
 import (
 	"fmt"
-	"github.com/celeskyking/go-nacos/api"
-	"github.com/celeskyking/go-nacos/pkg/pool"
-	"github.com/celeskyking/go-nacos/pkg/util"
+	"gitlab.mfwdev.com/portal/go-nacos/api"
+	"gitlab.mfwdev.com/portal/go-nacos/pkg/pool"
+	"gitlab.mfwdev.com/portal/go-nacos/pkg/util"
 	"testing"
 	"time"
 )

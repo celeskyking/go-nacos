@@ -1,10 +1,10 @@
 package beat
 
 import (
-	v1 "github.com/celeskyking/go-nacos/api/ns/v1"
-	"github.com/celeskyking/go-nacos/pkg/util"
-	"github.com/celeskyking/go-nacos/types"
 	"github.com/sirupsen/logrus"
+	v1 "gitlab.mfwdev.com/portal/go-nacos/api/ns/v1"
+	"gitlab.mfwdev.com/portal/go-nacos/pkg/util"
+	"gitlab.mfwdev.com/portal/go-nacos/types"
 	"time"
 )
 

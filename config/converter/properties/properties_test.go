@@ -2,8 +2,8 @@ package properties
 
 import (
 	"fmt"
-	"github.com/celeskyking/go-nacos/config"
-	"github.com/celeskyking/go-nacos/types"
+	"gitlab.mfwdev.com/portal/go-nacos/config"
+	"gitlab.mfwdev.com/portal/go-nacos/types"
 	"testing"
 )
 

@@ -1,9 +1,9 @@
 package loadbalancer
 
 import (
-	"github.com/celeskyking/go-nacos/client/http"
 	"github.com/parnurzeal/gorequest"
 	"github.com/sirupsen/logrus"
+	"gitlab.mfwdev.com/portal/go-nacos/client/http"
 	"net/url"
 	"reflect"
 	"strings"

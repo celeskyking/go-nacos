@@ -1,7 +1,7 @@
 package naming
 
 import (
-	"github.com/celeskyking/go-nacos/types"
+	"gitlab.mfwdev.com/portal/go-nacos/types"
 	"math/rand"
 	"reflect"
 	"time"

@@ -1,13 +1,13 @@
 package nacos
 
 import (
-	"github.com/celeskyking/go-nacos/api"
-	"github.com/celeskyking/go-nacos/config"
-	"github.com/celeskyking/go-nacos/naming"
-	"github.com/celeskyking/go-nacos/naming/discovery"
-	"github.com/celeskyking/go-nacos/pkg/util"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"gitlab.mfwdev.com/portal/go-nacos/api"
+	"gitlab.mfwdev.com/portal/go-nacos/config"
+	"gitlab.mfwdev.com/portal/go-nacos/naming"
+	"gitlab.mfwdev.com/portal/go-nacos/naming/discovery"
+	"gitlab.mfwdev.com/portal/go-nacos/pkg/util"
 )
 
 var ErrSnapshotDirIsEmpty = errors.New("未指定config service的snapshot目录")

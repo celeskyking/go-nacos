@@ -2,8 +2,8 @@ package discovery
 
 import (
 	"fmt"
-	"github.com/celeskyking/go-nacos/api"
-	"github.com/celeskyking/go-nacos/naming"
+	"gitlab.mfwdev.com/portal/go-nacos/api"
+	"gitlab.mfwdev.com/portal/go-nacos/naming"
 	"testing"
 	"time"
 )

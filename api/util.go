@@ -1,7 +1,7 @@
 package api
 
 import (
-	"github.com/celeskyking/go-nacos/client/loadbalancer"
+	"gitlab.mfwdev.com/portal/go-nacos/client/loadbalancer"
 	"net/url"
 	"strings"
 )

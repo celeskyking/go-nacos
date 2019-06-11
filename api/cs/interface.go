@@ -1,6 +1,6 @@
 package cs
 
-import "github.com/celeskyking/go-nacos/types"
+import "gitlab.mfwdev.com/portal/go-nacos/types"
 
 type FileMirror interface {
 

@@ -1,8 +1,8 @@
 package loader
 
 import (
-	v1 "github.com/celeskyking/go-nacos/api/cs/v1"
-	"github.com/celeskyking/go-nacos/types"
+	v1 "gitlab.mfwdev.com/portal/go-nacos/api/cs/v1"
+	"gitlab.mfwdev.com/portal/go-nacos/types"
 )
 
 type RemoteLoader struct {

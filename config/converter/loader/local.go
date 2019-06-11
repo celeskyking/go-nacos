@@ -1,11 +1,11 @@
 package loader
 
 import (
-	"github.com/celeskyking/go-nacos/err"
-	"github.com/celeskyking/go-nacos/pkg/util"
-	"github.com/celeskyking/go-nacos/types"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"gitlab.mfwdev.com/portal/go-nacos/err"
+	"gitlab.mfwdev.com/portal/go-nacos/pkg/util"
+	"gitlab.mfwdev.com/portal/go-nacos/types"
 	"io/ioutil"
 	"os"
 	"path/filepath"

@@ -1,12 +1,12 @@
 package naming
 
 import (
-	"github.com/celeskyking/go-nacos/api"
-	v1 "github.com/celeskyking/go-nacos/api/ns/v1"
-	"github.com/celeskyking/go-nacos/err"
-	"github.com/celeskyking/go-nacos/pkg/util"
-	"github.com/celeskyking/go-nacos/types"
 	"github.com/pkg/errors"
+	"gitlab.mfwdev.com/portal/go-nacos/api"
+	v1 "gitlab.mfwdev.com/portal/go-nacos/api/ns/v1"
+	"gitlab.mfwdev.com/portal/go-nacos/err"
+	"gitlab.mfwdev.com/portal/go-nacos/pkg/util"
+	"gitlab.mfwdev.com/portal/go-nacos/types"
 	"strconv"
 	"strings"
 	"sync"

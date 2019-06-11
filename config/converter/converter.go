@@ -1,8 +1,8 @@
 package converter
 
 import (
-	"github.com/celeskyking/go-nacos/api/cs"
-	"github.com/celeskyking/go-nacos/types"
+	"gitlab.mfwdev.com/portal/go-nacos/api/cs"
+	"gitlab.mfwdev.com/portal/go-nacos/types"
 	"sync"
 )
 

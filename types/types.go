@@ -1,7 +1,7 @@
 package types
 
 import (
-	"github.com/celeskyking/go-nacos/err"
+	"gitlab.mfwdev.com/portal/go-nacos/err"
 	"strings"
 )
 

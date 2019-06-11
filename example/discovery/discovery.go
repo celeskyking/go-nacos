@@ -2,10 +2,10 @@ package main
 
 import (
 	"fmt"
-	"github.com/celeskyking/go-nacos"
-	"github.com/celeskyking/go-nacos/api"
-	"github.com/celeskyking/go-nacos/naming"
-	"github.com/celeskyking/go-nacos/pkg/util"
+	"gitlab.mfwdev.com/portal/go-nacos"
+	"gitlab.mfwdev.com/portal/go-nacos/api"
+	"gitlab.mfwdev.com/portal/go-nacos/naming"
+	"gitlab.mfwdev.com/portal/go-nacos/pkg/util"
 )
 
 func main() {
@@ -27,7 +27,7 @@ func main() {
 	if er != nil {
 		panic(er)
 	}
-	serverList, er := dc.GetInstances("app2", &naming.QueryOptions{
+	serverList, er := dc.GetInstances("demo", &naming.QueryOptions{
 		Namespace: "",
 		Cluster:   "",
 		//会接受推送
