@@ -583,7 +583,7 @@ type FileDesc struct {
 	//应用名
 	AppName string
 	//环境
-	Env string
+	Group string
 
 	Namespace string
 }

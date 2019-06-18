@@ -67,7 +67,7 @@ func (a *Application) NewConfigService(snapshotDir string) config.ConfigService 
 		ServerOptions: a.configServers,
 		SnapshotDir:   snapshotDir,
 		AppName:       a.Config.AppName,
-		Env:           a.Config.Env,
+		Group:         a.Config.Group,
 		Cluster:       a.Config.Cluster,
 		Namespace:     a.Config.Namespace,
 	})
@@ -89,7 +89,7 @@ func (a *Application) NewDiscoveryClient() *discovery.Client {
 		Namespace: a.Config.Namespace,
 		AppName:   a.Config.AppName,
 		Cluster:   a.Config.Cluster,
-		Env:       a.Config.Env,
+		Group:     a.Config.Group,
 		Port:      a.Config.Port,
 	})
 }

@@ -17,7 +17,7 @@ import (
 func main() {
 	appConfig := &api.AppConfig{
 		AppName: "demo",
-		Env:     "dev",
+		Group:   "dev",
 		Port:    8080,
 		//IP可以为空
 		IP: util.LocalIP(),

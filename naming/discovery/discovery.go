@@ -20,7 +20,7 @@ type Client struct {
 	//应用名
 	AppName string
 	//环境名
-	Env string
+	Group string
 	//心跳服务
 	heartBeatService beat.HeartBeatService
 
@@ -43,7 +43,7 @@ func NewDiscoveryClient(naming naming.NamingService, config *api.DiscoveryOption
 		Namespace: config.Namespace,
 		Cluster:   config.Cluster,
 		AppName:   config.AppName,
-		Env:       config.Env,
+		Group:     config.Group,
 		stopC:     make(chan struct{}, 0),
 		naming:    naming,
 		Ephemeral: true,
@@ -66,7 +66,7 @@ func (c *Client) SetEphemeral(ephemeral bool) {
 func (c *Client) SetHealthy(healthy bool) error {
 	return c.naming.SetInstanceHealthy(c.AppName, &naming.QueryOptions{
 		Namespace: c.Namespace,
-		Group:     c.Env,
+		Group:     c.Group,
 		Cluster:   c.Cluster,
 		Healthy:   healthy,
 	})
@@ -78,7 +78,7 @@ func (c *Client) Register() error {
 		Port:        c.Port,
 		NamespaceID: c.Namespace,
 		ServiceName: c.AppName,
-		GroupName:   c.Env,
+		GroupName:   c.Group,
 		ClusterName: c.Cluster,
 		Ephemeral:   c.Ephemeral,
 		Weight:      1.0,

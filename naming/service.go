@@ -44,6 +44,22 @@ type NamingService interface {
 
 	//Config
 	GetConfig() *api.ServerOptions
+
+	UpdateInstance(instance *types.ServiceInstance) error
+
+	CreateService(service *types.Service) error
+
+	UpdateService(service *types.Service) error
+
+	GetService(options ServiceOptions) (*types.ServiceDetail, error)
+
+	GetNamespaceID() string
+}
+
+type ServiceOptions struct {
+	ServiceName string
+
+	Group string
 }
 
 //QueryOptions 查询的选项
@@ -71,6 +87,7 @@ func NewNamingService(config *api.ServerOptions) NamingService {
 		httpClient:   httpClient,
 		pushReceiver: v1.NewPushReceiver(),
 		stopC:        stopC,
+		NamespaceID:  config.NamespaceID,
 	}
 	go ns.pushReceiver.Start()
 	return ns
@@ -86,6 +103,8 @@ type namingService struct {
 	pushReceiver *v1.PushReceiver
 
 	lock sync.Mutex
+
+	NamespaceID string
 
 	stopC chan struct{}
 }
@@ -120,6 +139,54 @@ func (n *namingService) SetInstanceHealthy(serviceName string, option *QueryOpti
 		return err.ErrNamingService
 	}
 	return nil
+}
+
+func (n *namingService) UpdateInstance(instance *types.ServiceInstance) error {
+	result, er := n.httpClient.UpdateServiceInstance(instance)
+	if er != nil {
+		return er
+	}
+	if result.Success {
+		return nil
+	}
+	return err.ErrNamingService
+}
+
+func (n *namingService) CreateService(service *types.Service) error {
+	result, er := n.httpClient.CreateService(service)
+	if er != nil {
+		return er
+	}
+	if result.Success {
+		return nil
+	}
+	return err.ErrNamingService
+}
+
+func (n *namingService) UpdateService(service *types.Service) error {
+	result, er := n.httpClient.UpdateService(service)
+	if er != nil {
+		return er
+	}
+	if result.Success {
+		return nil
+	}
+	return err.ErrNamingService
+}
+
+func (n *namingService) GetService(options ServiceOptions) (*types.ServiceDetail, error) {
+	detail, er := n.httpClient.GetService(&types.Service{
+		ServiceName: options.ServiceName,
+		GroupName:   options.Group,
+	})
+	if er != nil {
+		return nil, er
+	}
+	return detail, nil
+}
+
+func (n *namingService) GetNamespaceID() string {
+	return n.NamespaceID
 }
 
 func (n *namingService) GetConfig() *api.ServerOptions {

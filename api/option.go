@@ -2,16 +2,6 @@ package api
 
 import "time"
 
-const (
-	EndpointSwitch string = "ALIBABA_ALIWARE_ENDPOINT_PORT"
-
-	Endpoint string = "ENDPOINT"
-
-	EndpointPort string = "ENDPOINT_PORT"
-
-	EndpointURL string = "ALIBABA_ALIWARE_ENDPOINT_PORT"
-)
-
 type HttpConfigOption struct {
 	//连接超时
 	ConnectTimeout time.Duration
@@ -46,13 +36,15 @@ type ServerOptions struct {
 	Endpoint string
 	//EndpointEnabled 功能是否启动
 	EndpointEnabled bool
+	//命名空间地址
+	NamespaceID string
 }
 
 type AppConfig struct {
 	//应用名称
 	AppName string
 	//环境名称
-	Env string
+	Group string
 	// 当前的namespace
 	Namespace string
 	//当前的实例集群
@@ -69,7 +61,7 @@ type ConfigOptions struct {
 	//应用名称
 	AppName string
 	//环境名称
-	Env string
+	Group string
 	// 当前的namespace
 	Namespace string
 	//当前的实例集群
@@ -82,7 +74,7 @@ type DiscoveryOptions struct {
 	//应用名称
 	AppName string
 	//环境名称
-	Env string
+	Group string
 	// 当前的namespace
 	Namespace string
 	//当前的实例集群

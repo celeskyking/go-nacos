@@ -20,7 +20,6 @@ import (
 )
 
 type ConfigService interface {
-
 	//获取Properties文件
 	Properties(file string) (*properties.MapFile, error)
 
@@ -44,7 +43,7 @@ func NewConfigService(options *api.ConfigOptions) ConfigService {
 	loaders = append(loaders, loader.NewRemoteLoader(httpClient))
 	loaders = append(loaders, localLoader)
 	return &configService{
-		Env:            options.Env,
+		Group:          options.Group,
 		Namespace:      options.Namespace,
 		AppName:        options.AppName,
 		fileNotifier:   make(map[string]chan []byte, 0),
@@ -59,7 +58,7 @@ func NewConfigService(options *api.ConfigOptions) ConfigService {
 
 type configService struct {
 	//数据中心
-	Env string
+	Group string
 	//对应的命名空间
 	Namespace string
 	//对应的group
@@ -103,7 +102,7 @@ func (c *configService) getFile(file string) ([]byte, error) {
 		Name:      file,
 		Namespace: c.Namespace,
 		AppName:   c.AppName,
-		Env:       c.Env,
+		Group:     c.Group,
 	}
 	for _, l := range c.loaders {
 		data, er := l.Load(desc)
@@ -137,11 +136,11 @@ func (c *configService) Custom(file string, converter converter.FileConverter) (
 	f := converter.Convert(&types.FileDesc{
 		Namespace: c.Namespace,
 		AppName:   c.AppName,
-		Env:       c.Env,
+		Group:     c.Group,
 		Name:      file,
 	}, bs)
 	m := util.MD5(bs)
-	k := buildFileKey(c.Namespace, c.AppName, c.Env, file)
+	k := buildFileKey(c.Namespace, c.AppName, c.Group, file)
 	if _, ok := c.fileNotifier[file]; !ok {
 		//100长度的缓冲队列
 		c.fileNotifier[k] = make(chan []byte, 100)
@@ -157,7 +156,7 @@ func (c *configService) Custom(file string, converter converter.FileConverter) (
 }
 
 func (c *configService) group() string {
-	return c.AppName + ":" + c.Env
+	return c.AppName + ":" + c.Group
 }
 
 func (c *configService) Watch() {
@@ -191,7 +190,7 @@ func (c *configService) Watch() {
 						Namespace: c.Namespace,
 						Name:      k.DataID,
 						AppName:   parts[0],
-						Env:       parts[1],
+						Group:     parts[1],
 					}
 					pool.Go(func(context context.Context) {
 						c.flushSnapshot(desc, vb)

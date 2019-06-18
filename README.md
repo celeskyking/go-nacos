@@ -9,7 +9,7 @@ Nacos的Go客户端,不仅封装了OpenApi，参考Nacos的Java Client封装了�
 ## 快速开始
 
 
-> go get -u gitlab.mfwdev.com/portal/go-nacos@dev
+> go get -u git@ssh.gitlab.mfwdev.com:333/portal/go-nacos
 
 
 ### Config
