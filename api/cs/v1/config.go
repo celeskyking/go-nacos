@@ -2,7 +2,6 @@ package v1
 
 import (
 	"errors"
-	"fmt"
 	"github.com/celeskyking/go-nacos/api"
 	"github.com/celeskyking/go-nacos/client/http"
 	"github.com/celeskyking/go-nacos/client/loadbalancer"
@@ -143,7 +142,6 @@ func (c *configHttpClient) ListenConfigs(request *types.ListenConfigsRequest) ([
 	logrus.Infof("listen configs, request:%+s", util.ToJSONString(request))
 	u := api.SelectOne(c.LB) + path.Join(Prefix, c.Option.Version, ListenerConfigPath)
 	req := request.Line()
-	fmt.Println("lines:" + req)
 	resp, body, errs := http.New().Timeout(time.Minute).Post(u).
 		Set("Long-Pulling-Timeout", DefaultPollingTimeout).
 		Send("Listening-Configs=" + req).

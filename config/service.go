@@ -2,7 +2,6 @@ package config
 
 import (
 	"context"
-	"fmt"
 	"github.com/celeskyking/go-nacos/api"
 	"github.com/celeskyking/go-nacos/api/cs"
 	v1 "github.com/celeskyking/go-nacos/api/cs/v1"
@@ -125,17 +124,21 @@ func (c *configService) getFile(group, file string) ([]byte, error) {
 }
 
 func (c *configService) Custom(group, file string, converter converter.FileConverter) (cs.FileMirror, error) {
-	bs, er := c.getFile(group, file)
+	g := group
+	if g == "" {
+		g = DefaultGroup
+	}
+	bs, er := c.getFile(g, file)
 	if er != nil {
 		return nil, er
 	}
 	f := converter.Convert(&types.FileDesc{
 		Namespace: c.NameSpaceID,
-		Group:     group,
+		Group:     g,
 		Name:      file,
 	}, bs)
 	m := util.MD5(bs)
-	k := buildFileKey(c.NameSpaceID, group, file)
+	k := buildFileKey(c.NameSpaceID, g, file)
 	if _, ok := c.fileNotifier[file]; !ok {
 		//100长度的缓冲队列
 		c.fileNotifier[k] = make(chan []byte, 100)
@@ -191,7 +194,6 @@ func (c *configService) Watch() {
 						tmp := make([]byte, len(vb))
 						copy(tmp, vb)
 						m := util.MD5(tmp)
-						fmt.Println("md5:" + m)
 						c.fileVersion[k.Line()] = m
 						notifyC <- vb
 					}

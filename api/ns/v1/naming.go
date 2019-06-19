@@ -2,7 +2,6 @@ package v1
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/celeskyking/go-nacos/api"
 	"github.com/celeskyking/go-nacos/api/ns/endpoint"
 	"github.com/celeskyking/go-nacos/client/http"
@@ -179,7 +178,7 @@ func (n *namingHttpClient) RegisterServiceInstance(instance *types.ServiceInstan
 	if er != nil {
 		return nil, er
 	}
-	fmt.Println("register instance:" + req)
+	logrus.Info("register instance:" + req)
 	resp, body, errs := http.NewNamingHttp().Timeout(DefaultConnectTimeout).Post(url).Query(req).End()
 	er = handleErrorResponse(resp, errs)
 	if er != nil {

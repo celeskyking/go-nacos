@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/celeskyking/go-nacos"
 	"github.com/celeskyking/go-nacos/api"
+	"github.com/celeskyking/go-nacos/config"
 	"github.com/celeskyking/go-nacos/pkg/util"
 	"github.com/celeskyking/go-nacos/types"
 )
@@ -30,7 +31,7 @@ func main() {
 	})
 	configService := app.NewConfigService("/tmp/nacos/config/snapshot")
 	//目前只支持properties文件,不过支持自定义格式文件的扩展,Custom方法
-	file, er := configService.Properties("demo.properties")
+	file, er := configService.Properties(config.DefaultGroup, "demo.properties")
 	if er != nil {
 		panic(er)
 	}

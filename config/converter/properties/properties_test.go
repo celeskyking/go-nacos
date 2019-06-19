@@ -2,17 +2,16 @@ package properties
 
 import (
 	"fmt"
-	"github.com/celeskyking/go-nacos/config"
+	"github.com/celeskyking/go-nacos/config/converter"
 	"github.com/celeskyking/go-nacos/types"
 	"testing"
 )
 
 func TestMapFile_Desc(t *testing.T) {
-	c := config.GetConverter("properties")
+	c := converter.GetConverter("properties")
 	mapfile := c.Convert(&types.FileDesc{
 		Name:      "demo.properties",
-		AppName:   "app1",
-		Env:       "beta",
+		Group:     "app1",
 		Namespace: "demo",
 	}, []byte("name=tianqing.wang")).(*MapFile)
 	fmt.Println(mapfile.MD5())
