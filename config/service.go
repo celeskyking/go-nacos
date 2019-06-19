@@ -145,15 +145,22 @@ func (c *configService) Custom(group, file string, converter converter.FileConve
 
 	}
 	go f.OnChanged(c.fileNotifier[file])
-	if !c.watched {
-		c.watched = true
-		c.Watch()
-	}
 	c.fileVersion[k] = m
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	if !c.watched {
+		c.Watch()
+		c.watched = true
+	}
 	return f, nil
 }
 
 func (c *configService) Watch() {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	if c.watched {
+		return
+	}
 	go func() {
 		reties := 0
 		maxDelay := 60

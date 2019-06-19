@@ -21,6 +21,7 @@ func main() {
 		Addresses:       []string{"127.0.0.1:8848"},
 		LBStrategy:      api.RoundRobin,
 		EndpointEnabled: false,
+		NamespaceID:     "",
 	})
 	dc := app.NewDiscoveryClient()
 	er := dc.Register()
