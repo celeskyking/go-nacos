@@ -150,17 +150,15 @@ func (c *configService) Custom(group, file string, converter converter.FileConve
 	defer c.lock.Unlock()
 	if !c.watched {
 		c.Watch()
-		c.watched = true
 	}
 	return f, nil
 }
 
 func (c *configService) Watch() {
-	c.lock.Lock()
-	defer c.lock.Unlock()
 	if c.watched {
 		return
 	}
+	c.watched = true
 	go func() {
 		reties := 0
 		maxDelay := 60
