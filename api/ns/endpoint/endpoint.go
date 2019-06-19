@@ -3,8 +3,8 @@ package endpoint
 import (
 	"bufio"
 	"bytes"
+	"github.com/celeskyking/go-nacos/client/http"
 	"github.com/sirupsen/logrus"
-	"gitlab.mfwdev.com/portal/go-nacos/client/http"
 	"path"
 	"time"
 )

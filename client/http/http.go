@@ -17,8 +17,8 @@ func init() {
 }
 
 func NewNamingHttp() *gorequest.SuperAgent {
-	return Client.Clone().Set("User-Agent", "nacos-go-sdk:v1.0.0").
-		Set("Client-Version", "nacos-go-sdk:v1.0.0").
+	return Client.Clone().Set("User-Agent", "nacos-go-sdk:v1.0.1").
+		Set("Client-Version", "nacos-go-sdk:v1.0.1").
 		Set("Connection", "Keep-Alive").
 		Set("RequestId", uid()).
 		Set("Request-Module", "Naming")

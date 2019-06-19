@@ -2,9 +2,9 @@ package v1
 
 import (
 	"encoding/json"
+	"github.com/celeskyking/go-nacos/pkg/util"
+	"github.com/celeskyking/go-nacos/types"
 	"github.com/sirupsen/logrus"
-	"gitlab.mfwdev.com/portal/go-nacos/pkg/util"
-	"gitlab.mfwdev.com/portal/go-nacos/types"
 	"math/rand"
 	"net"
 	"strconv"

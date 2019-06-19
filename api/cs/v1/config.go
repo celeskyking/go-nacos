@@ -2,15 +2,16 @@ package v1
 
 import (
 	"errors"
+	"fmt"
+	"github.com/celeskyking/go-nacos/api"
+	"github.com/celeskyking/go-nacos/client/http"
+	"github.com/celeskyking/go-nacos/client/loadbalancer"
+	"github.com/celeskyking/go-nacos/err"
+	"github.com/celeskyking/go-nacos/pkg/query"
+	"github.com/celeskyking/go-nacos/pkg/util"
+	"github.com/celeskyking/go-nacos/types"
 	"github.com/parnurzeal/gorequest"
 	"github.com/sirupsen/logrus"
-	"gitlab.mfwdev.com/portal/go-nacos/api"
-	"gitlab.mfwdev.com/portal/go-nacos/client/http"
-	"gitlab.mfwdev.com/portal/go-nacos/client/loadbalancer"
-	"gitlab.mfwdev.com/portal/go-nacos/err"
-	"gitlab.mfwdev.com/portal/go-nacos/pkg/query"
-	"gitlab.mfwdev.com/portal/go-nacos/pkg/util"
-	"gitlab.mfwdev.com/portal/go-nacos/types"
 	"io/ioutil"
 	"net/url"
 	"os"
@@ -118,6 +119,9 @@ func newConfigHttpClient(option *api.HttpConfigOption) *configHttpClient {
 func (c *configHttpClient) GetConfigs(request *types.ConfigsRequest) (*types.ConfigsResponse, error) {
 	logrus.Infof("get configs,request%+v", request)
 	u := api.SelectOne(c.LB)
+	if request.Tenant == "Public" {
+		request.Tenant = ""
+	}
 	req, er := query.Marshal(request)
 	if er != nil {
 		return nil, er
@@ -139,6 +143,7 @@ func (c *configHttpClient) ListenConfigs(request *types.ListenConfigsRequest) ([
 	logrus.Infof("listen configs, request:%+s", util.ToJSONString(request))
 	u := api.SelectOne(c.LB) + path.Join(Prefix, c.Option.Version, ListenerConfigPath)
 	req := request.Line()
+	fmt.Println("lines:" + req)
 	resp, body, errs := http.New().Timeout(time.Minute).Post(u).
 		Set("Long-Pulling-Timeout", DefaultPollingTimeout).
 		Send("Listening-Configs=" + req).

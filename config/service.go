@@ -2,29 +2,32 @@ package config
 
 import (
 	"context"
+	"fmt"
+	"github.com/celeskyking/go-nacos/api"
+	"github.com/celeskyking/go-nacos/api/cs"
+	v1 "github.com/celeskyking/go-nacos/api/cs/v1"
+	"github.com/celeskyking/go-nacos/config/converter"
+	"github.com/celeskyking/go-nacos/config/converter/loader"
+	"github.com/celeskyking/go-nacos/config/converter/properties"
+	"github.com/celeskyking/go-nacos/err"
+	"github.com/celeskyking/go-nacos/pkg/pool"
+	"github.com/celeskyking/go-nacos/pkg/util"
+	"github.com/celeskyking/go-nacos/types"
 	"github.com/sirupsen/logrus"
-	"gitlab.mfwdev.com/portal/go-nacos/api"
-	"gitlab.mfwdev.com/portal/go-nacos/api/cs"
-	v1 "gitlab.mfwdev.com/portal/go-nacos/api/cs/v1"
-	"gitlab.mfwdev.com/portal/go-nacos/config/converter"
-	"gitlab.mfwdev.com/portal/go-nacos/config/converter/loader"
-	"gitlab.mfwdev.com/portal/go-nacos/config/converter/properties"
-	"gitlab.mfwdev.com/portal/go-nacos/err"
-	"gitlab.mfwdev.com/portal/go-nacos/pkg/pool"
-	"gitlab.mfwdev.com/portal/go-nacos/pkg/util"
-	"gitlab.mfwdev.com/portal/go-nacos/types"
 	"os"
-	"strings"
 	"sync"
 	"time"
 )
 
+const (
+	DefaultGroup string = "DEFAULT_GROUP"
+)
+
 type ConfigService interface {
 	//获取Properties文件
-	Properties(file string) (*properties.MapFile, error)
-
+	Properties(group, file string) (*properties.MapFile, error)
 	//文件
-	Custom(file string, c converter.FileConverter) (cs.FileMirror, error)
+	Custom(group, file string, c converter.FileConverter) (cs.FileMirror, error)
 
 	Watch()
 
@@ -43,26 +46,18 @@ func NewConfigService(options *api.ConfigOptions) ConfigService {
 	loaders = append(loaders, loader.NewRemoteLoader(httpClient))
 	loaders = append(loaders, localLoader)
 	return &configService{
-		Group:          options.Group,
-		Namespace:      options.Namespace,
-		AppName:        options.AppName,
 		fileNotifier:   make(map[string]chan []byte, 0),
 		fileVersion:    make(map[string]string, 0),
 		status:         false,
 		SnapshotDir:    options.SnapshotDir,
 		loaders:        loaders,
 		httpClient:     httpClient,
+		NameSpaceID:    options.NamespaceID,
 		snapshotWriter: localLoader.(loader.SnapshotWriter),
 	}
 }
 
 type configService struct {
-	//数据中心
-	Group string
-	//对应的命名空间
-	Namespace string
-	//对应的group
-	AppName string
 	//文件监听器,key为ListenKey
 	fileNotifier map[string]chan []byte
 	//文件的版本
@@ -83,10 +78,12 @@ type configService struct {
 	snapshotWriter loader.SnapshotWriter
 
 	watched bool
+
+	NameSpaceID string
 }
 
-func (c *configService) Properties(file string) (*properties.MapFile, error) {
-	f, er := c.Custom(file, converter.GetConverter("properties"))
+func (c *configService) Properties(group, file string) (*properties.MapFile, error) {
+	f, er := c.Custom(group, file, converter.GetConverter("properties"))
 	if er != nil {
 		return nil, er
 	}
@@ -97,12 +94,11 @@ func (c *configService) HttpClient() v1.ConfigHttpClient {
 	return c.httpClient
 }
 
-func (c *configService) getFile(file string) ([]byte, error) {
+func (c *configService) getFile(group, file string) ([]byte, error) {
 	desc := &types.FileDesc{
 		Name:      file,
-		Namespace: c.Namespace,
-		AppName:   c.AppName,
-		Group:     c.Group,
+		Namespace: c.NameSpaceID,
+		Group:     group,
 	}
 	for _, l := range c.loaders {
 		data, er := l.Load(desc)
@@ -128,19 +124,18 @@ func (c *configService) getFile(file string) ([]byte, error) {
 	return nil, err.ErrFileNotFound
 }
 
-func (c *configService) Custom(file string, converter converter.FileConverter) (cs.FileMirror, error) {
-	bs, er := c.getFile(file)
+func (c *configService) Custom(group, file string, converter converter.FileConverter) (cs.FileMirror, error) {
+	bs, er := c.getFile(group, file)
 	if er != nil {
 		return nil, er
 	}
 	f := converter.Convert(&types.FileDesc{
-		Namespace: c.Namespace,
-		AppName:   c.AppName,
-		Group:     c.Group,
+		Namespace: c.NameSpaceID,
+		Group:     group,
 		Name:      file,
 	}, bs)
 	m := util.MD5(bs)
-	k := buildFileKey(c.Namespace, c.AppName, c.Group, file)
+	k := buildFileKey(c.NameSpaceID, group, file)
 	if _, ok := c.fileNotifier[file]; !ok {
 		//100长度的缓冲队列
 		c.fileNotifier[k] = make(chan []byte, 100)
@@ -155,10 +150,6 @@ func (c *configService) Custom(file string, converter converter.FileConverter) (
 	return f, nil
 }
 
-func (c *configService) group() string {
-	return c.AppName + ":" + c.Group
-}
-
 func (c *configService) Watch() {
 	go func() {
 		reties := 0
@@ -169,6 +160,9 @@ func (c *configService) Watch() {
 			if er != nil {
 				logrus.Errorf("listen nacos file error:%+v", er)
 				os.Exit(1)
+			}
+			if len(list) == 0 {
+				time.Sleep(5 * time.Second)
 			}
 			changes, er := c.httpClient.ListenConfigs(&types.ListenConfigsRequest{
 				ListeningConfigs: list,
@@ -185,12 +179,10 @@ func (c *configService) Watch() {
 				if v != "" {
 					k.ContentMD5 = ""
 					vb := []byte(v)
-					parts := strings.Split(k.Group, ":")
 					desc := &types.FileDesc{
-						Namespace: c.Namespace,
+						Namespace: c.NameSpaceID,
 						Name:      k.DataID,
-						AppName:   parts[0],
-						Group:     parts[1],
+						Group:     k.Group,
 					}
 					pool.Go(func(context context.Context) {
 						c.flushSnapshot(desc, vb)
@@ -198,7 +190,9 @@ func (c *configService) Watch() {
 					if notifyC, ok := c.fileNotifier[k.Line()]; ok {
 						tmp := make([]byte, len(vb))
 						copy(tmp, vb)
-						c.fileVersion[k.Line()] = util.MD5(tmp)
+						m := util.MD5(tmp)
+						fmt.Println("md5:" + m)
+						c.fileVersion[k.Line()] = m
 						notifyC <- vb
 					}
 				}
@@ -222,10 +216,13 @@ func (c *configService) StopWatch() {
 	}
 }
 
-func buildFileKey(namespace, app, env, file string) string {
+func buildFileKey(namespace, group, file string) string {
+	if namespace == "" {
+		namespace = "Public"
+	}
 	key := &types.ListenKey{
 		Tenant: namespace,
-		Group:  app + ":" + env,
+		Group:  group,
 		DataID: file,
 	}
 	return key.Line()

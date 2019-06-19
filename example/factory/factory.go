@@ -1,8 +1,8 @@
 package main
 
 import (
-	"gitlab.mfwdev.com/portal/go-nacos"
-	"gitlab.mfwdev.com/portal/go-nacos/api"
+	"github.com/celeskyking/go-nacos"
+	"github.com/celeskyking/go-nacos/api"
 )
 
 func main() {

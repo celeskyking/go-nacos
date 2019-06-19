@@ -3,17 +3,17 @@ package v1
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/celeskyking/go-nacos/api"
+	"github.com/celeskyking/go-nacos/api/ns/endpoint"
+	"github.com/celeskyking/go-nacos/client/http"
+	"github.com/celeskyking/go-nacos/client/loadbalancer"
+	"github.com/celeskyking/go-nacos/err"
+	"github.com/celeskyking/go-nacos/pkg/query"
+	"github.com/celeskyking/go-nacos/pkg/util"
+	"github.com/celeskyking/go-nacos/types"
 	"github.com/parnurzeal/gorequest"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"gitlab.mfwdev.com/portal/go-nacos/api"
-	"gitlab.mfwdev.com/portal/go-nacos/api/ns/endpoint"
-	"gitlab.mfwdev.com/portal/go-nacos/client/http"
-	"gitlab.mfwdev.com/portal/go-nacos/client/loadbalancer"
-	"gitlab.mfwdev.com/portal/go-nacos/err"
-	"gitlab.mfwdev.com/portal/go-nacos/pkg/query"
-	"gitlab.mfwdev.com/portal/go-nacos/pkg/util"
-	"gitlab.mfwdev.com/portal/go-nacos/types"
 	"io/ioutil"
 	"os"
 	"path"
@@ -63,6 +63,8 @@ type NamingHttpClient interface {
 	//服务列表
 	//必须严格匹配groupName和namespace
 	ListService(option *types.ServiceListOption) (*types.ServiceListResult, error)
+	//
+	GetCatalogServices(option *types.ServiceListOption) ([]*types.CatalogServiceDetail, error)
 
 	GetSwitches() (*types.SwitchesDetail, error)
 
@@ -77,8 +79,6 @@ type NamingHttpClient interface {
 	UpdateSwitches(request *types.UpdateSwitchRequest) (*types.Result, error)
 
 	UpdateServiceInstanceHealthy(request *types.UpdateServiceInstanceHealthyRequest) (*types.Result, error)
-
-	CatalogServices(withInstances bool, namespaceId string) ([]*types.CatalogServiceDetail, error)
 
 	LoadBalance() loadbalancer.LB
 
@@ -152,18 +152,6 @@ type namingHttpClient struct {
 	stopC chan struct{}
 }
 
-func (n *namingHttpClient) CatalogServices(withInstances bool, namespaceId string) ([]*types.CatalogServiceDetail, error) {
-	url := api.SelectOne(n.LB) + path.Join(Prefix, n.Option.Version, CatalogServicesPath) + "?namespaceId=" + namespaceId
-	resp, body, errs := http.NewNamingHttp().Timeout(DefaultConnectTimeout).Get(url).EndBytes()
-	er := handleErrorResponse(resp, errs)
-	if er != nil {
-		return nil, er
-	}
-	var servers []*types.CatalogServiceDetail
-	er = json.Unmarshal(body, &servers)
-	return servers, er
-}
-
 func (n *namingHttpClient) GetNacosServers() (*types.NacosServers, error) {
 	url := api.SelectOne(n.LB) + path.Join(Prefix, n.Option.Version, NacosServersPath)
 	resp, body, errs := http.NewNamingHttp().Timeout(DefaultConnectTimeout).Get(url).EndBytes()
@@ -234,6 +222,21 @@ func (n *namingHttpClient) UpdateServiceInstance(instance *types.ServiceInstance
 	return &types.Result{
 		Success: body == "ok",
 	}, nil
+}
+
+func (n *namingHttpClient) GetCatalogServices(option *types.ServiceListOption) ([]*types.CatalogServiceDetail, error) {
+	var result []*types.CatalogServiceDetail
+	url := api.SelectOne(n.LB) + path.Join(Prefix, n.Option.Version, CatalogServicesPath)
+	req, er := query.Marshal(option)
+	if er != nil {
+		return nil, er
+	}
+	resp, _, errs := http.NewNamingHttp().Timeout(DefaultConnectTimeout).Get(url).Query(req).EndStruct(&result)
+	er = handleErrorResponse(resp, errs)
+	if er != nil {
+		return nil, er
+	}
+	return result, er
 }
 
 func (n *namingHttpClient) GetServiceInstanceDetail(instance *types.ServiceInstance) (*types.InstanceDetail, error) {

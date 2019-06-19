@@ -1,12 +1,12 @@
 package naming
 
 import (
+	"github.com/celeskyking/go-nacos/api"
+	v1 "github.com/celeskyking/go-nacos/api/ns/v1"
+	"github.com/celeskyking/go-nacos/err"
+	"github.com/celeskyking/go-nacos/pkg/util"
+	"github.com/celeskyking/go-nacos/types"
 	"github.com/pkg/errors"
-	"gitlab.mfwdev.com/portal/go-nacos/api"
-	v1 "gitlab.mfwdev.com/portal/go-nacos/api/ns/v1"
-	"gitlab.mfwdev.com/portal/go-nacos/err"
-	"gitlab.mfwdev.com/portal/go-nacos/pkg/util"
-	"gitlab.mfwdev.com/portal/go-nacos/types"
 	"strconv"
 	"strings"
 	"sync"
@@ -25,7 +25,7 @@ type NamingService interface {
 	GetInstances(serviceName string, options *QueryOptions) (*ServerList, error)
 
 	//GetAllService 返回所有的服务信息,服务的个数和服务的名称列表
-	GetAllServices(namespaceID string) (int, []*types.CatalogServiceDetail, error)
+	GetServices(option *types.ServiceListOption) ([]*types.CatalogServiceDetail, error)
 
 	//返回所有的
 	GetAllServicesCount(namespaceID string) (int, error)
@@ -223,12 +223,17 @@ func (n *namingService) GetInstances(serviceName string, options *QueryOptions) 
 	return sl, er
 }
 
-func (n *namingService) GetAllServices(namespaceID string) (int, []*types.CatalogServiceDetail, error) {
-	services, er := n.httpClient.CatalogServices(true, namespaceID)
+func (n *namingService) GetServices(option *types.ServiceListOption) ([]*types.CatalogServiceDetail, error) {
+	services, er := n.httpClient.GetCatalogServices(&types.ServiceListOption{
+		NamespaceID: option.NamespaceID,
+		PageSize:    option.PageSize,
+		PageNo:      option.PageNo,
+		GroupName:   "",
+	})
 	if er != nil {
-		return 0, nil, er
+		return nil, er
 	}
-	return len(services), services, nil
+	return services, nil
 }
 
 func (n *namingService) GetAllServicesCount(namespaceID string) (int, error) {

@@ -58,14 +58,6 @@ type AppConfig struct {
 //ConfigOptions 把nacos的定义高级抽象了一下,把Group拆分为app和env group= app:env
 type ConfigOptions struct {
 	*ServerOptions
-	//应用名称
-	AppName string
-	//环境名称
-	Group string
-	// 当前的namespace
-	Namespace string
-	//当前的实例集群
-	Cluster string
 
 	SnapshotDir string
 }

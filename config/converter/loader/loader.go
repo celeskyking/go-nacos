@@ -1,7 +1,7 @@
 package loader
 
 import (
-	"gitlab.mfwdev.com/portal/go-nacos/types"
+	"github.com/celeskyking/go-nacos/types"
 )
 
 type Loader interface {

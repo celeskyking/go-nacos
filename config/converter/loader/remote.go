@@ -1,8 +1,8 @@
 package loader
 
 import (
-	v1 "gitlab.mfwdev.com/portal/go-nacos/api/cs/v1"
-	"gitlab.mfwdev.com/portal/go-nacos/types"
+	v1 "github.com/celeskyking/go-nacos/api/cs/v1"
+	"github.com/celeskyking/go-nacos/types"
 )
 
 type RemoteLoader struct {
@@ -21,7 +21,7 @@ func (r *RemoteLoader) Load(desc *types.FileDesc) (b []byte, err error) {
 	resp, er := r.Client.GetConfigs(&types.ConfigsRequest{
 		DataID: desc.Name,
 		Tenant: desc.Namespace,
-		Group:  desc.AppName + ":" + desc.Env,
+		Group:  desc.Group,
 	})
 	if er != nil {
 		return nil, er

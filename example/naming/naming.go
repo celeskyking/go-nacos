@@ -1,10 +1,10 @@
 package main
 
 import (
-	"gitlab.mfwdev.com/portal/go-nacos"
-	"gitlab.mfwdev.com/portal/go-nacos/api"
-	"gitlab.mfwdev.com/portal/go-nacos/pkg/util"
-	"gitlab.mfwdev.com/portal/go-nacos/types"
+	"github.com/celeskyking/go-nacos"
+	"github.com/celeskyking/go-nacos/api"
+	"github.com/celeskyking/go-nacos/pkg/util"
+	"github.com/celeskyking/go-nacos/types"
 )
 
 func main() {

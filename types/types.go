@@ -1,7 +1,7 @@
 package types
 
 import (
-	"gitlab.mfwdev.com/portal/go-nacos/err"
+	"github.com/celeskyking/go-nacos/err"
 	"strings"
 )
 
@@ -57,7 +57,7 @@ func (l *ListenKey) Line() string {
 	result = append(result, l.DataID)
 	result = append(result, l.Group)
 	result = append(result, l.ContentMD5)
-	if l.Tenant != "" {
+	if l.Tenant != "" && l.Tenant != "Public" {
 		result = append(result, l.Tenant)
 	}
 	return strings.Join(result, string(FieldSeparator)) + string(ArticleSeparator)
@@ -67,7 +67,7 @@ func ParseListenKey(line string) (*ListenKey, error) {
 	line = strings.Trim(line, string(ArticleSeparator))
 	parts := strings.Split(line, string(FieldSeparator))
 	l := len(parts)
-	if !(l == 3 || l == 4) {
+	if !(l == 3 || l == 4 || l == 2) {
 		return nil, err.ErrKeyNotValid
 	}
 	key := &ListenKey{
@@ -76,7 +76,8 @@ func ParseListenKey(line string) (*ListenKey, error) {
 	}
 	if l == 3 {
 		key.Tenant = parts[2]
-	} else {
+	} else if l == 4 {
+		//当订阅的时候拼成的字符串是4个长度
 		key.ContentMD5 = parts[2]
 		key.Tenant = parts[3]
 	}
@@ -293,13 +294,13 @@ type CatalogServiceDetail struct {
 
 	GroupName string `json:"groupName"`
 
-	ClusterMap map[string]*ClusterInfo `json:"clusterMap"`
+	ClusterMap map[string]*ClusterInfo `json:"clusterMap,omitempty"`
 
-	Metadata map[string]string `json:"metadata"`
+	Metadata map[string]string `json:"metadata,omitempty"`
 }
 
 type ClusterInfo struct {
-	Hosts []*IPAddressInfo `json:"hosts"`
+	Hosts []*IPAddressInfo `json:"hosts,omitempty"`
 }
 
 type IPAddressInfo struct {
@@ -580,8 +581,6 @@ func NewMySQLHealthChecker(user, pwd, cmd string) *MySQLHealthChecker {
 type FileDesc struct {
 	//
 	Name string
-	//应用名
-	AppName string
 	//环境
 	Group string
 

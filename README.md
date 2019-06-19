@@ -33,10 +33,10 @@ ConfigService是一个对于OpenApi的高级封装,定义了一些最佳实践�
 ```go
 import (
 	"fmt"
-	"gitlab.mfwdev.com/portal/go-nacos"
-	"gitlab.mfwdev.com/portal/go-nacos/api"
-	"gitlab.mfwdev.com/portal/go-nacos/config"
-	"gitlab.mfwdev.com/portal/go-nacos/pkg/util"
+	"github.com/celeskyking/go-nacos"
+	"github.com/celeskyking/go-nacos/api"
+	"github.com/celeskyking/go-nacos/config"
+	"github.com/celeskyking/go-nacos/pkg/util"
 )
 
 //
@@ -100,10 +100,10 @@ NamingService是一个简单封装,把服务发现和注册的能力统一封装
 ```go
 
 import (
-	"gitlab.mfwdev.com/portal/go-nacos"
-	"gitlab.mfwdev.com/portal/go-nacos/api"
-	"gitlab.mfwdev.com/portal/go-nacos/pkg/util"
-	"gitlab.mfwdev.com/portal/go-nacos/types"
+	"github.com/celeskyking/go-nacos"
+	"github.com/celeskyking/go-nacos/api"
+	"github.com/celeskyking/go-nacos/pkg/util"
+	"github.com/celeskyking/go-nacos/types"
 )
 
 func main() {
@@ -150,10 +150,10 @@ func main() {
 ```go
 import (
 	"fmt"
-	"gitlab.mfwdev.com/portal/go-nacos"
-	"gitlab.mfwdev.com/portal/go-nacos/api"
-	"gitlab.mfwdev.com/portal/go-nacos/naming"
-	"gitlab.mfwdev.com/portal/go-nacos/pkg/util"
+	"github.com/celeskyking/go-nacos"
+	"github.com/celeskyking/go-nacos/api"
+	"github.com/celeskyking/go-nacos/naming"
+	"github.com/celeskyking/go-nacos/pkg/util"
 )
 
 func main() {
@@ -205,10 +205,10 @@ func main() {
 
 import (
 	"fmt"
-	"gitlab.mfwdev.com/portal/go-nacos"
-	"gitlab.mfwdev.com/portal/go-nacos/api"
-	"gitlab.mfwdev.com/portal/go-nacos/pkg/util"
-	"gitlab.mfwdev.com/portal/go-nacos/types"
+	"github.com/celeskyking/go-nacos"
+	"github.com/celeskyking/go-nacos/api"
+	"github.com/celeskyking/go-nacos/pkg/util"
+	"github.com/celeskyking/go-nacos/types"
 )
 
 func main () {

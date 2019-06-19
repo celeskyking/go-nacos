@@ -1,4 +1,4 @@
-module gitlab.mfwdev.com/portal/go-nacos
+module github.com/celeskyking/go-nacos
 
 go 1.12
 

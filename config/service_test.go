@@ -2,18 +2,16 @@ package config
 
 import (
 	"fmt"
-	"gitlab.mfwdev.com/portal/go-nacos/api"
-	"gitlab.mfwdev.com/portal/go-nacos/pkg/pool"
-	"gitlab.mfwdev.com/portal/go-nacos/pkg/util"
+	"github.com/celeskyking/go-nacos/api"
+	"github.com/celeskyking/go-nacos/pkg/pool"
+	"github.com/celeskyking/go-nacos/pkg/util"
+	"github.com/celeskyking/go-nacos/types"
 	"testing"
 	"time"
 )
 
 func configS() ConfigService {
 	op := &api.ConfigOptions{
-		Env:         "beta",
-		AppName:     "app1",
-		Namespace:   "7df0358d-8c73-4af3-8798-a54dd49aad7f",
 		SnapshotDir: "/tmp/nacos/config/",
 		ServerOptions: &api.ServerOptions{
 			Addresses:  []string{"127.0.0.1:8848"},
@@ -26,7 +24,7 @@ func configS() ConfigService {
 
 func TestNewConfigService(t *testing.T) {
 	c := configS()
-	mapFile, er := c.Properties("demo.properties")
+	mapFile, er := c.Properties(DefaultGroup, "demo.properties")
 	if er != nil {
 		panic(er)
 	}
@@ -36,7 +34,7 @@ func TestNewConfigService(t *testing.T) {
 
 func TestConfigService_Properties(t *testing.T) {
 	cs := configS()
-	p, er := cs.Properties("demo.properties")
+	p, er := cs.Properties(DefaultGroup, "demo.properties")
 	if er != nil {
 		panic(er)
 	}
@@ -47,11 +45,11 @@ func TestConfigService_Properties(t *testing.T) {
 
 func TestConfigService_Watch(t *testing.T) {
 	c := configS()
-	mapFile, er := c.Properties("demo.properties")
+	mapFile, er := c.Properties(DefaultGroup, "demo.properties")
 	if er != nil {
 		panic(er)
 	}
-	mapFile.ListenValue("text", func(key string, curValue, newValue string, ctx *FileDesc) {
+	mapFile.ListenValue("text", func(key string, curValue, newValue string, ctx *types.FileDesc) {
 		fmt.Println("new value:" + newValue)
 	})
 	c.Watch()

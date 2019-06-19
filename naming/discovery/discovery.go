@@ -1,12 +1,12 @@
 package discovery
 
 import (
+	"github.com/celeskyking/go-nacos/api"
+	"github.com/celeskyking/go-nacos/naming"
+	beat "github.com/celeskyking/go-nacos/naming/heartbeat"
+	"github.com/celeskyking/go-nacos/pkg/util"
+	"github.com/celeskyking/go-nacos/types"
 	"github.com/pkg/errors"
-	"gitlab.mfwdev.com/portal/go-nacos/api"
-	"gitlab.mfwdev.com/portal/go-nacos/naming"
-	beat "gitlab.mfwdev.com/portal/go-nacos/naming/heartbeat"
-	"gitlab.mfwdev.com/portal/go-nacos/pkg/util"
-	"gitlab.mfwdev.com/portal/go-nacos/types"
 )
 
 type Client struct {

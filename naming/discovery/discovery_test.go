@@ -2,8 +2,8 @@ package discovery
 
 import (
 	"fmt"
-	"gitlab.mfwdev.com/portal/go-nacos/api"
-	"gitlab.mfwdev.com/portal/go-nacos/naming"
+	"github.com/celeskyking/go-nacos/api"
+	"github.com/celeskyking/go-nacos/naming"
 	"testing"
 	"time"
 )
@@ -19,7 +19,7 @@ func init() {
 
 	appConfig := &api.DiscoveryOptions{
 		AppName:   "demo",
-		Env:       "dev",
+		Group:     "dev",
 		Namespace: "7df0358d-8c73-4af3-8798-a54dd49aad7f",
 		Cluster:   "",
 		Port:      8848,

@@ -1,11 +1,11 @@
 package loader
 
 import (
+	"github.com/celeskyking/go-nacos/err"
+	"github.com/celeskyking/go-nacos/pkg/util"
+	"github.com/celeskyking/go-nacos/types"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"gitlab.mfwdev.com/portal/go-nacos/err"
-	"gitlab.mfwdev.com/portal/go-nacos/pkg/util"
-	"gitlab.mfwdev.com/portal/go-nacos/types"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -27,7 +27,7 @@ func NewLocalLoader(snapshotDir string) Loader {
 
 //加载
 func (ll *LocalLoader) Load(desc *types.FileDesc) ([]byte, error) {
-	parts := []string{ll.SnapshotDir, desc.Namespace, desc.AppName, desc.Env, desc.Name}
+	parts := []string{ll.SnapshotDir, desc.Namespace, desc.Group, desc.Name}
 	p := filepath.Join(parts...)
 	if r, er := util.PathExists(p); er != nil {
 		return nil, er
@@ -47,7 +47,7 @@ func (ll *LocalLoader) Load(desc *types.FileDesc) ([]byte, error) {
 
 //向文件中写入内容
 func (ll *LocalLoader) Write(desc *types.FileDesc, content []byte) error {
-	parts := []string{ll.SnapshotDir, desc.Namespace, desc.AppName, desc.Env}
+	parts := []string{ll.SnapshotDir, desc.Namespace, desc.Group}
 	p := filepath.Join(parts...)
 	if e, er := util.PathExists(p); er != nil {
 		return errors.Wrap(er, "snapshot dir exist")

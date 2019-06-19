@@ -2,8 +2,8 @@ package v1
 
 import (
 	"fmt"
-	"gitlab.mfwdev.com/portal/go-nacos/api"
-	"gitlab.mfwdev.com/portal/go-nacos/types"
+	"github.com/celeskyking/go-nacos/api"
+	"github.com/celeskyking/go-nacos/types"
 	"testing"
 	"time"
 )

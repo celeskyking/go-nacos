@@ -2,9 +2,9 @@ package v1
 
 import (
 	"fmt"
-	"gitlab.mfwdev.com/portal/go-nacos/api"
-	"gitlab.mfwdev.com/portal/go-nacos/pkg/util"
-	"gitlab.mfwdev.com/portal/go-nacos/types"
+	"github.com/celeskyking/go-nacos/api"
+	"github.com/celeskyking/go-nacos/pkg/util"
+	"github.com/celeskyking/go-nacos/types"
 	"testing"
 )
 
@@ -18,7 +18,11 @@ func init() {
 }
 
 func TestNamingHttpClient_CatalogServices(t *testing.T) {
-	result, er := Naming.CatalogServices(true, "7df0358d-8c73-4af3-8798-a54dd49aad7f")
+	result, er := Naming.GetCatalogServices(&types.ServiceListOption{
+		NamespaceID: "",
+		PageNo:      1,
+		PageSize:    10,
+	})
 	if er != nil {
 		t.Errorf("catalog services failed:%+v", er)
 		t.Fail()
@@ -30,7 +34,7 @@ func TestNamingHttpClient_CatalogServices(t *testing.T) {
 
 func TestNamingHttpClient_CreateService(t *testing.T) {
 	result, err := Naming.CreateService(&types.Service{
-		NamespaceId:      "7df0358d-8c73-4af3-8798-a54dd49aad7f",
+		NamespaceId:      "",
 		ServiceName:      "go-nacos",
 		GroupName:        "dev",
 		ProtectThreshold: 0.6,
@@ -48,7 +52,7 @@ func TestNamingHttpClient_CreateService(t *testing.T) {
 
 func TestNamingHttpClient_DeleteService(t *testing.T) {
 	result, err := Naming.DeleteService(&types.Service{
-		NamespaceId: "7df0358d-8c73-4af3-8798-a54dd49aad7f",
+		NamespaceId: "",
 		ServiceName: "go-nacos",
 		GroupName:   "dev",
 	})
@@ -88,9 +92,9 @@ func TestNamingHttpClient_GetNacosServers(t *testing.T) {
 
 func TestNamingHttpClient_GetService(t *testing.T) {
 	result, err := Naming.GetService(&types.Service{
-		NamespaceId: "7df0358d-8c73-4af3-8798-a54dd49aad7f",
-		ServiceName: "demo",
-		GroupName:   "dev",
+		NamespaceId: "",
+		ServiceName: "app1",
+		GroupName:   "",
 	})
 	if err != nil {
 		t.Error("create service failed", err)
@@ -110,8 +114,8 @@ func TestNamingHttpClient_GetSwitches(t *testing.T) {
 
 func TestNamingHttpClient_RegisterServiceInstance(t *testing.T) {
 	result, err := Naming.RegisterServiceInstance(&types.ServiceInstance{
-		GroupName:   "beta",
-		ServiceName: "local-2",
+		GroupName:   "",
+		ServiceName: "app1",
 		IP:          "10.10.10.15",
 		Port:        8080,
 		Metadata: util.MapToString(map[string]string{
@@ -133,9 +137,9 @@ func TestNamingHttpClient_RegisterServiceInstance(t *testing.T) {
 func TestNamingHttpClient_PatchCluster(t *testing.T) {
 	cluster := &types.Cluster{
 		NamespaceID:           "",
-		ServiceName:           "local-2",
+		ServiceName:           "app1",
 		ClusterName:           "DEFAULT",
-		GroupName:             "beta",
+		GroupName:             "",
 		UseInstancePort4Check: true,
 		CheckPort:             8080,
 		HealthChecker:         types.NewNoneHealthChecker(),
@@ -151,10 +155,10 @@ func TestNamingHttpClient_PatchCluster(t *testing.T) {
 func TestNamingHttpClient_UpdateServiceInstanceHealthy(t *testing.T) {
 	r, er := Naming.UpdateServiceInstanceHealthy(&types.UpdateServiceInstanceHealthyRequest{
 		NamespaceID: "",
-		ServiceName: "local-2",
+		ServiceName: "app1",
 		ClusterName: "DEFAULT",
-		GroupName:   "beta",
-		IP:          util.LocalIP(),
+		GroupName:   "",
+		IP:          "10.10.10.15",
 		Port:        8080,
 		Healthy:     true,
 	})
